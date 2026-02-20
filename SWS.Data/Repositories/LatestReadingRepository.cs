@@ -29,7 +29,7 @@ public sealed class LatestReadingRepository
         {
             existing.TimestampUtc = latest.TimestampUtc;
             existing.ValueNumeric = latest.ValueNumeric;
-            existing.ValueText = latest.ValueText;
+            existing.ErrorText = latest.ErrorText;
             existing.Quality = latest.Quality;
             existing.UpdatedUtc = DateTime.UtcNow;
         }

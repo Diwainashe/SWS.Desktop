@@ -7,128 +7,211 @@ using SWS.Core.Models;
 using SWS.Data;
 using SWS.Modbus;
 
-namespace SWS.Acquisition
+namespace SWS.Acquisition;
+
+public sealed class SmokeReadOnceService
 {
-    /// <summary>
-    /// One-shot Modbus read that proves the full pipeline:
-    /// DB config -> Modbus read -> decode -> upsert LatestReading.
-    /// </summary>
-    public sealed class SmokeReadOnceService
+    private readonly SwsDbContext _db;
+
+    public SmokeReadOnceService(SwsDbContext db)
     {
-        private readonly SwsDbContext _db;
+        _db = db;
+    }
 
-        public SmokeReadOnceService(SwsDbContext db)
+    public string ReadOnceAndUpsertLatest()
+    {
+        var device = _db.DeviceConfigs.AsNoTracking()
+            .FirstOrDefault(d => d.IsEnabled);
+
+        if (device is null)
+            return "No enabled device found (DeviceConfigs table is empty or disabled).";
+
+        // For smoke test, just pick the first point for this device.
+        // (Not hardcoded addresses; it reads from DB.)
+        var point = _db.PointConfigs.AsNoTracking()
+            .FirstOrDefault(p => p.DeviceConfigId == device.Id);
+
+        if (point is null)
+            return "No points found for the device (PointConfigs table is empty).";
+
+        try
         {
-            _db = db;
-        }
+            decimal? numeric = null;
 
-        public string ReadOnceAndUpsertLatest()
-        {
-            var device = _db.DeviceConfigs.AsNoTracking()
-                .FirstOrDefault(d => d.IsEnabled);
+            // ---- Read from device based on Area (Holding/Input/Coil/Discrete) ----
+            using var client = new TcpClient();
+            client.Connect(device.IpAddress, device.Port);
 
-            if (device is null)
-                return "No enabled device found (DeviceConfigs table is empty or disabled).";
+            var factory = new ModbusFactory();
+            var master = factory.CreateMaster(client);
 
-            var point = _db.PointConfigs.AsNoTracking()
-                .FirstOrDefault(p => p.DeviceConfigId == device.Id);
-
-            if (point is null)
-                return "No points found for the device (PointConfigs table is empty).";
-
-            // Convert "manual style" holding register 400007 -> 0-based offset 6
-            // Rule: 400001 => 0, 400002 => 1 ... so subtract 400001
-            var startOffset = ModbusAddressing.HoldingRegisterToOffset(point.Address);
-            if (startOffset < 0 || startOffset > ushort.MaxValue)
-                return $"Point address {point.Address} produced invalid offset {startOffset}.";
-
-            if (startOffset < 0)
-                return $"Point address {point.Address} is invalid (expected 400001+ for holding registers).";
-
-            try
+            switch (point.Area)
             {
-                // 1) Connect
-                using var client = new TcpClient();
-                client.Connect(device.IpAddress, device.Port);
-
-                // 2) Read Holding Registers (4x)
-                var factory = new ModbusFactory();
-                var master = factory.CreateMaster(client);
-
-                // IMPORTANT: Use positional arguments for your NModbus version
-                ushort[] regs = master.ReadHoldingRegisters(
-                    device.UnitId,
-                    (ushort)startOffset,
-                    point.Length
-                );
-
-
-                // 3) Decode
-                var numeric = ModbusDecoder.DecodeToDecimal(regs, point);
-                var text = ModbusDecoder.DecodeToText(regs, point);
-
-                // 4) Upsert LatestReading (one row per device+point)
-                var now = DateTime.UtcNow;
-
-                var existing = _db.LatestReadings
-                    .FirstOrDefault(r => r.DeviceConfigId == device.Id && r.PointConfigId == point.Id);
-
-                if (existing is null)
-                {
-                    existing = new LatestReading
+                case ModbusPointArea.HoldingRegister:
                     {
-                        DeviceConfigId = device.Id,
-                        PointConfigId = point.Id
-                    };
-                    _db.LatestReadings.Add(existing);
-                }
+                        int offset = ModbusAddressing.ToZeroBasedOffset(point.Address);
+                        if (offset < 0 || offset > ushort.MaxValue)
+                            return $"Point address {point.Address} produced invalid offset {offset}.";
 
-                existing.TimestampUtc = now;
-                existing.ValueNumeric = numeric;
-                existing.ValueText = text;
-                existing.Quality = ReadingQuality.Good;
-                existing.UpdatedUtc = now;
+                        ushort[] regs = master.ReadHoldingRegisters(device.UnitId, (ushort)offset, point.Length);
+                        numeric = ModbusDecoder.DecodeToNumeric(regs, point);
+                        break;
+                    }
 
-                _db.SaveChanges();
+                case ModbusPointArea.InputRegister:
+                    {
+                        int offset = ModbusAddressing.ToZeroBasedOffset(point.Address);
+                        if (offset < 0 || offset > ushort.MaxValue)
+                            return $"Point address {point.Address} produced invalid offset {offset}.";
 
-                return $"OK: {device.Name} {point.Key} @ {point.Address} (offset {startOffset}) = {text}";
+                        ushort[] regs = master.ReadInputRegisters(device.UnitId, (ushort)offset, point.Length);
+                        numeric = ModbusDecoder.DecodeToNumeric(regs, point);
+                        break;
+                    }
+
+                case ModbusPointArea.Coil:
+                    {
+                        int offset = ModbusAddressing.ToZeroBasedOffset(point.Address);
+                        if (offset < 0 || offset > ushort.MaxValue)
+                            return $"Point address {point.Address} produced invalid offset {offset}.";
+
+                        bool[] bits = master.ReadCoils(device.UnitId, (ushort)offset, 1);
+                        numeric = bits.Length > 0 ? (bits[0] ? 1m : 0m) : null;
+                        break;
+                    }
+
+                case ModbusPointArea.DiscreteInput:
+                    {
+                        int offset = ModbusAddressing.ToZeroBasedOffset(point.Address);
+                        if (offset < 0 || offset > ushort.MaxValue)
+                            return $"Point address {point.Address} produced invalid offset {offset}.";
+
+                        bool[] bits = master.ReadInputs(device.UnitId, (ushort)offset, 1);
+                        numeric = bits.Length > 0 ? (bits[0] ? 1m : 0m) : null;
+                        break;
+                    }
+
+                default:
+                    return $"Unsupported Modbus area: {point.Area}";
             }
-            catch (SocketException ex)
-            {
-                UpsertError(device.Id, point.Id, ReadingQuality.Timeout, ex.Message);
-                return $"TIMEOUT/CONNECT ERROR: {ex.Message}";
-            }
-            catch (Exception ex)
-            {
-                UpsertError(device.Id, point.Id, ReadingQuality.Exception, ex.Message);
-                return $"EXCEPTION: {ex.Message}";
-            }
+
+            UpsertLatestSuccess(device.Id, point.Id, numeric);
+
+            // Optional historian write (controlled by DB flags)
+            MaybeInsertHistory(device.Id, point, numeric, ReadingQuality.Good, errorText: null);
+
+            return $"OK: {device.Name} {point.Key} @ {point.Address} [{point.Area}] = {(numeric?.ToString() ?? "null")}";
         }
-
-        private void UpsertError(int deviceId, int pointId, ReadingQuality quality, string message)
+        catch (SocketException ex)
         {
-            var now = DateTime.UtcNow;
-
-            var existing = _db.LatestReadings
-                .FirstOrDefault(r => r.DeviceConfigId == deviceId && r.PointConfigId == pointId);
-
-            if (existing is null)
-            {
-                existing = new LatestReading
-                {
-                    DeviceConfigId = deviceId,
-                    PointConfigId = pointId
-                };
-                _db.LatestReadings.Add(existing);
-            }
-
-            existing.TimestampUtc = now;
-            existing.ValueNumeric = null;
-            existing.ValueText = message;
-            existing.Quality = quality;
-            existing.UpdatedUtc = now;
-
-            _db.SaveChanges();
+            UpsertLatestError(device.Id, point.Id, ReadingQuality.Timeout, ex.Message);
+            MaybeInsertHistory(device.Id, point, null, ReadingQuality.Timeout, ex.Message);
+            return $"TIMEOUT/CONNECT ERROR: {ex.Message}";
         }
+        catch (Exception ex)
+        {
+            UpsertLatestError(device.Id, point.Id, ReadingQuality.Exception, ex.Message);
+            MaybeInsertHistory(device.Id, point, null, ReadingQuality.Exception, ex.Message);
+            return $"EXCEPTION: {ex.Message}";
+        }
+    }
+
+    private void UpsertLatestSuccess(int deviceId, int pointId, decimal? valueNumeric)
+    {
+        var nowUtc = DateTime.UtcNow;
+
+        var row = _db.LatestReadings
+            .FirstOrDefault(r => r.DeviceConfigId == deviceId && r.PointConfigId == pointId);
+
+        if (row is null)
+        {
+            row = new LatestReading
+            {
+                DeviceConfigId = deviceId,
+                PointConfigId = pointId
+            };
+            _db.LatestReadings.Add(row);
+        }
+
+        row.TimestampUtc = nowUtc;
+        row.ValueNumeric = valueNumeric;
+
+        // IMPORTANT: do not store text for normal readings
+        row.ErrorText = null;
+
+        row.Quality = ReadingQuality.Good;
+        row.UpdatedUtc = nowUtc;
+
+        _db.SaveChanges();
+    }
+
+    private void UpsertLatestError(int deviceId, int pointId, ReadingQuality quality, string message)
+    {
+        var nowUtc = DateTime.UtcNow;
+
+        var row = _db.LatestReadings
+            .FirstOrDefault(r => r.DeviceConfigId == deviceId && r.PointConfigId == pointId);
+
+        if (row is null)
+        {
+            row = new LatestReading
+            {
+                DeviceConfigId = deviceId,
+                PointConfigId = pointId
+            };
+            _db.LatestReadings.Add(row);
+        }
+
+        row.TimestampUtc = nowUtc;
+        row.ValueNumeric = null;
+
+        // Only errors get text
+        row.ErrorText = message;
+
+        row.Quality = quality;
+        row.UpdatedUtc = nowUtc;
+
+        _db.SaveChanges();
+    }
+
+    private void MaybeInsertHistory(
+        int deviceId,
+        PointConfig point,
+        decimal? valueNumeric,
+        ReadingQuality quality,
+        string? errorText)
+    {
+        if (!point.LogToHistory)
+            return;
+
+        // Guard bad configuration
+        if (point.HistoryIntervalMs <= 0)
+            return;
+
+        var nowUtc = DateTime.UtcNow;
+        var minTimeUtc = nowUtc.AddMilliseconds(-point.HistoryIntervalMs);
+
+        // Simple throttling: only write if last history record is older than interval
+        var last = _db.ReadingHistories.AsNoTracking()
+            .Where(h => h.DeviceConfigId == deviceId && h.PointConfigId == point.Id)
+            .OrderByDescending(h => h.TimestampUtc)
+            .Select(h => (DateTime?)h.TimestampUtc)
+            .FirstOrDefault();
+
+        if (last.HasValue && last.Value > minTimeUtc)
+            return;
+
+        var history = new ReadingHistory
+        {
+            DeviceConfigId = deviceId,
+            PointConfigId = point.Id,
+            TimestampUtc = nowUtc,
+            ValueNumeric = valueNumeric,
+            Quality = quality,
+            ErrorText = quality == ReadingQuality.Good ? null : errorText
+        };
+
+        _db.ReadingHistories.Add(history);
+        _db.SaveChanges();
     }
 }

@@ -97,7 +97,7 @@ namespace SWS.Acquisition
 
                 existing.TimestampUtc = now;
                 existing.ValueNumeric = numeric;
-                existing.ValueText = text;
+                existing.ErrorText = text;
                 existing.Quality = ReadingQuality.Good;
                 existing.UpdatedUtc = now;
 
@@ -165,7 +165,7 @@ namespace SWS.Acquisition
 
             existing.TimestampUtc = now;
             existing.ValueNumeric = null;
-            existing.ValueText = msg;
+            existing.ErrorText = null;
             existing.Quality = q;
             existing.UpdatedUtc = now;
 

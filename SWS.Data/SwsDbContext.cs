@@ -3,10 +3,6 @@ using SWS.Core.Models;
 
 namespace SWS.Data;
 
-/// <summary>
-/// EF Core DbContext for configuration and live/latest readings.
-/// Historian (Readings) will be added after the first vertical slice.
-/// </summary>
 public sealed class SwsDbContext : DbContext
 {
     public SwsDbContext(DbContextOptions<SwsDbContext> options) : base(options) { }
@@ -14,19 +10,30 @@ public sealed class SwsDbContext : DbContext
     public DbSet<DeviceConfig> DeviceConfigs => Set<DeviceConfig>();
     public DbSet<PointConfig> PointConfigs => Set<PointConfig>();
     public DbSet<LatestReading> LatestReadings => Set<LatestReading>();
+    public DbSet<ReadingHistory> ReadingHistories => Set<ReadingHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<LatestReading>()
-            .Property(x => x.ValueNumeric)
-            .HasPrecision(18, 6);
+        // LatestReading: enforce "one row per device+point"
+        modelBuilder.Entity<LatestReading>(b =>
+        {
+            b.HasIndex(x => new { x.DeviceConfigId, x.PointConfigId }).IsUnique();
+            b.Property(x => x.ValueNumeric).HasPrecision(18, 6);
+        });
 
-        modelBuilder.Entity<PointConfig>()
-            .Property(x => x.Scale)
-            .HasPrecision(18, 6);
+        modelBuilder.Entity<PointConfig>(b =>
+        {
+            b.Property(x => x.Scale).HasPrecision(18, 6);
+        });
+
+        modelBuilder.Entity<ReadingHistory>(b =>
+        {
+            b.HasKey(x => x.Id);
+            b.HasIndex(x => new { x.PointConfigId, x.TimestampUtc });
+            b.HasIndex(x => new { x.DeviceConfigId, x.TimestampUtc });
+            b.Property(x => x.ValueNumeric).HasPrecision(18, 6);
+        });
     }
-
-
 }

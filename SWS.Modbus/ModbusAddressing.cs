@@ -1,34 +1,28 @@
 ﻿namespace SWS.Modbus;
 
 /// <summary>
-/// Central place for converting "manual-style" PLC addresses (e.g. 40001)
-/// into NModbus 0-based offsets.
-/// 
-/// Why: different tools/manuals sometimes write 40007 vs 400007.
-/// This normalizer keeps your DB consistent and avoids off-by-base bugs.
+/// Converts manual-style Modbus addresses to 0-based offsets used by libraries.
+/// Supports both 40,000-style (e.g. 40007) and 400,000-style (e.g. 400007).
 /// </summary>
 public static class ModbusAddressing
 {
-    /// <summary>
-    /// Convert a holding-register address (4x) to a 0-based offset.
-    /// Accepts either:
-    /// - 40001 style (common manuals)
-    /// - 400001 style (some SCADA tools show 6 digits)
-    /// </summary>
-    public static int HoldingRegisterToOffset(int address)
+    public static int ToZeroBasedOffset(int manualAddress)
     {
-        // Normalize "400007" -> "40007" if someone stored 6-digit style.
-        // (i.e., anything >= 400001 is assumed to be 400001-based)
-        if (address >= 400001)
-            return address - 400001;
+        // Common manual formats:
+        // - 40001..49999 (older style)
+        // - 400001..499999 (6-digit style)
+        // We detect which base to subtract.
+        if (manualAddress >= 400001)
+            return manualAddress - 400001;
 
-        if (address >= 40001)
-            return address - 40001;
+        if (manualAddress >= 40001)
+            return manualAddress - 40001;
 
-        throw new ArgumentOutOfRangeException(
-            nameof(address),
-            address,
-            "Holding register address must be 40001+ (or 400001+).");
+        // If someone stored 1-based raw register index (1..),
+        // treat it as 1-based and convert to 0-based.
+        if (manualAddress >= 1)
+            return manualAddress - 1;
+
+        return -1;
     }
 }
-

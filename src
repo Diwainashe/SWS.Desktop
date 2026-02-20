@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="../SWS.Acquisition/SWS.Acquisition.csproj" />
+  <Project Path="../SWS.Core/SWS.Core.csproj" />
+  <Project Path="../SWS.Data/SWS.Data.csproj" />
+  <Project Path="../SWS.Modbus/SWS.Modbus.csproj" />
+  <Project Path="SWS.Desktop.csproj" />
+</Solution>

@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+
+	<!-- NuGet packages used directly by this project -->
+	<ItemGroup>
+		<!-- BackgroundService -->
+		<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
+		<!-- IServiceScopeFactory -->
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+		<!-- ILogger<T> -->
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.3" />
+		<!-- EF Core extension methods used in this project (AsNoTracking, ToListAsync, etc.) -->
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.24" />
+	</ItemGroup>
+
+	<!-- Project references (so we can use SWS.Data, SWS.Modbus, etc.) -->
+	<ItemGroup>
+		<ProjectReference Include="..\SWS.Core\SWS.Core.csproj" />
+		<ProjectReference Include="..\SWS.Data\SWS.Data.csproj" />
+		<ProjectReference Include="..\SWS.Modbus\SWS.Modbus.csproj" />
+	</ItemGroup>
+
+</Project>

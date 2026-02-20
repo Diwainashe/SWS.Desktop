@@ -1,0 +1,9 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="SWS.Desktop.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="SwsConnectionString" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Server=(localdb)\MSSQLLocalDB;Database=SWS;Trusted_Connection=True;TrustServerCertificate=True;</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

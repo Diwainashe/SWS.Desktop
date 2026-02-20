@@ -1,39 +1,47 @@
-﻿using System;
+﻿using SWS.Core.Models;
 
-namespace SWS.Modbus;
-
-using SWS.Core.Models;
-
-public static class ModbusDecoder
+namespace SWS.Modbus
 {
-    public static decimal? DecodeToNumeric(ushort[] regs, PointConfig point)
+    public static class ModbusDecoder
     {
-        if (regs is null || regs.Length == 0)
-            return null;
-
-        decimal? raw = point.DataType switch
+        public static decimal? DecodeToNumeric(ushort[] regs, PointConfig point)
         {
-            PointDataType.UInt16 => regs[0],
-            PointDataType.Int16 => unchecked((short)regs[0]),
+            if (regs is null || regs.Length == 0)
+                return null;
 
-            PointDataType.UInt32 => regs.Length >= 2 ? CombineUInt32(regs[0], regs[1]) : null,
-            PointDataType.Int32 => regs.Length >= 2 ? unchecked((int)CombineUInt32(regs[0], regs[1])) : null,
+            decimal? raw = point.DataType switch
+            {
+                PointDataType.UInt16 => regs[0],
+                PointDataType.Int16 => unchecked((short)regs[0]),
+                PointDataType.UInt32 => regs.Length >= 2 ? CombineUInt32(regs[0], regs[1]) : null,
+                PointDataType.Int32 => regs.Length >= 2 ? unchecked((int)CombineUInt32(regs[0], regs[1])) : null,
+                PointDataType.Float32 => regs.Length >= 2 ? (decimal?)CombineFloat32(regs[0], regs[1]) : null,
+                _ => null
+            };
 
-            PointDataType.Float32 => regs.Length >= 2 ? (decimal?)CombineFloat32(regs[0], regs[1]) : null,
+            return raw is null ? null : raw.Value * point.Scale;
+        }
 
-            _ => null
-        };
+        public static string DecodeToText(ushort[] regs, PointConfig point)
+        {
+            if (regs is null || regs.Length == 0)
+                return string.Empty;
 
-        return raw is null ? null : raw.Value * point.Scale;
-    }
+            var numeric = DecodeToNumeric(regs, point);
+            if (numeric is not null)
+                return numeric.Value.ToString();
 
-    private static uint CombineUInt32(ushort hi, ushort lo)
-        => ((uint)hi << 16) | lo;
+            return string.Join(",", regs);  // Fallback for unsupported data types
+        }
 
-    private static float CombineFloat32(ushort hi, ushort lo)
-    {
-        uint raw = CombineUInt32(hi, lo);
-        var bytes = BitConverter.GetBytes(raw);
-        return BitConverter.ToSingle(bytes, 0);
+        private static uint CombineUInt32(ushort hi, ushort lo)
+            => ((uint)hi << 16) | lo;
+
+        private static float CombineFloat32(ushort hi, ushort lo)
+        {
+            uint raw = CombineUInt32(hi, lo);
+            var bytes = BitConverter.GetBytes(raw);
+            return BitConverter.ToSingle(bytes, 0);
+        }
     }
 }

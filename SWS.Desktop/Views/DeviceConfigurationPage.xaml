@@ -1,0 +1,9 @@
+﻿<Window x:Class="SWS.Desktop.Views.DeviceConfigurationPage"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Device Configuration" Height="300" Width="400">
+    <Grid>
+        <DataGrid Name="DeviceGrid" />
+        <Button Content="Add Device" Command="{Binding AddDeviceCommand}" />
+    </Grid>
+</Window>

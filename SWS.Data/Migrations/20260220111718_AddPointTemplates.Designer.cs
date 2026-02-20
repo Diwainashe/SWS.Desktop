@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SWS.Data;
 
@@ -11,9 +12,11 @@ using SWS.Data;
 namespace SWS.Data.Migrations
 {
     [DbContext(typeof(SwsDbContext))]
-    partial class SwsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260220111718_AddPointTemplates")]
+    partial class AddPointTemplates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -170,8 +173,7 @@ namespace SWS.Data.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Scale")
-                        .HasPrecision(18, 6)
-                        .HasColumnType("decimal(18,6)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 

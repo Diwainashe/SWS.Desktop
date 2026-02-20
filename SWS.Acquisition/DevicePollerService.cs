@@ -1,101 +1,96 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-
-using SWS.Data;
-using SWS.Data.Repositories;
-using Microsoft.Extensions.DependencyInjection;
-using SWS.Core.Abstractions;
+﻿using Microsoft.Extensions.DependencyInjection;
 using SWS.Core.Models;
+using SWS.Data;
+using SWS.Modbus;
+using System.Net.Sockets;
 
-
-namespace SWS.Acquisition;
-
-/// <summary>
-/// Background service that polls all enabled devices and writes results to LatestReadings.
-/// This is the engine behind live dashboard tiles.
-/// </summary>
-public sealed class DevicePollerService : BackgroundService
+public class DevicePollerService
 {
+    private readonly SwsDbContext _db;
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<DevicePollerService> _logger;
 
-    public DevicePollerService(IServiceScopeFactory scopeFactory, ILogger<DevicePollerService> logger)
+    public DevicePollerService(SwsDbContext db, IServiceScopeFactory scopeFactory)
     {
+        _db = db;
         _scopeFactory = scopeFactory;
-        _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public async Task PollDevicesAsync()
     {
-        // MVP loop (simple). Next iteration: per-device scheduling & read coalescing.
-        while (!stoppingToken.IsCancellationRequested)
+        var devices = _db.DeviceConfigs.Where(d => d.IsEnabled).ToList();
+
+        foreach (var device in devices)
         {
-            try
+            var points = _db.PointConfigs.Where(p => p.DeviceConfigId == device.Id).ToList();
+
+            foreach (var point in points)
             {
-                using var scope = _scopeFactory.CreateScope();
+                // Ensure you read and write based on PointConfig settings
+                var result = await ReadPointDataAsync(device, point);
 
-                var db = scope.ServiceProvider.GetRequiredService<SwsDbContext>();
-                var latestRepo = scope.ServiceProvider.GetRequiredService<LatestReadingRepository>();
-                var modbus = scope.ServiceProvider.GetRequiredService<IModbusClient>();
-                var decoder = scope.ServiceProvider.GetRequiredService<IDecoder>();
-
-                var devices = await db.DeviceConfigs
-                    .Where(d => d.IsEnabled)
-                    .AsNoTracking()
-                    .ToListAsync(stoppingToken);
-
-                foreach (var device in devices)
+                // Upsert to LatestReadings
+                var existing = _db.LatestReadings.FirstOrDefault(r => r.DeviceConfigId == device.Id && r.PointConfigId == point.Id);
+                if (existing == null)
                 {
-                    var points = await db.PointConfigs
-                        .Where(p => p.Id == device.Id)
-                        .AsNoTracking()
-                        .ToListAsync(stoppingToken);
-
-                    foreach (var point in points)
+                    existing = new LatestReading
                     {
-                        var latest = new LatestReading
-                        {
-                            DeviceConfigId = device.Id,
-                            PointConfigId = point.Id,
-                            TimestampUtc = DateTime.UtcNow,
-                            UpdatedUtc = DateTime.UtcNow
-                        };
+                        DeviceConfigId = device.Id,
+                        PointConfigId = point.Id,
+                    };
+                    _db.LatestReadings.Add(existing);
+                }
 
-                        try
-                        {
-                            ushort[] regs = await modbus.ReadHoldingRegistersAsync(
-                                device,
-                                point.Address,
-                                point.Length,
-                                stoppingToken);
+                existing.ValueNumeric = result.ValueNumeric;
+                existing.ErrorText = result.ValueText; // Store text only if error
+                existing.TimestampUtc = DateTime.UtcNow;
 
-                            decimal? val = decoder.DecodeNumeric(point, regs);
+                _db.SaveChanges();
 
-                            latest.ValueNumeric = val;
-                            latest.Quality = val.HasValue ? ReadingQuality.Good : ReadingQuality.BadData;
-                        }
-                        catch (TaskCanceledException) when (stoppingToken.IsCancellationRequested)
-                        {
-                            return;
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Polling failed: {Device} {Point}", device.Name, point.Key);
-                            latest.Quality = ReadingQuality.Exception;
-                        }
-
-                        await latestRepo.UpsertAsync(latest, stoppingToken);
-                    }
+                // If LogToHistory is true, log to ReadingHistory
+                if (point.LogToHistory)
+                {
+                    LogToHistory(device, point, result);
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Poller loop error");
-            }
+        }
+    }
 
-            // Global delay for MVP; we’ll refine to per-point PollRateMs next.
-            await Task.Delay(500, stoppingToken);
+    private async Task<(decimal? ValueNumeric, string ValueText)> ReadPointDataAsync(DeviceConfig device, PointConfig point)
+    {
+        // Create an instance of NModbusClient to call the ReadHoldingRegistersAsync method
+        var modbusClient = new NModbusClient();
+
+        // Simulate reading from the Modbus device (replace with actual reading logic)
+        ushort[] registers = await modbusClient.ReadHoldingRegistersAsync(
+            device,               // DeviceConfig object
+            point.Address,        // Logical address
+            point.Length,         // Length (number of registers to read)
+            CancellationToken.None  // Passing the cancellation token
+        );
+
+        // Decode register data
+        var valueNumeric = ModbusDecoder.DecodeToNumeric(registers, point);
+        var valueText = ModbusDecoder.DecodeToText(registers, point);
+
+        return (valueNumeric, valueText);
+    }
+
+    private void LogToHistory(DeviceConfig device, PointConfig point, (decimal? ValueNumeric, string ValueText) result)
+    {
+        if (point.HistoryIntervalMs > 0)
+        {
+            var historyEntry = new ReadingHistory
+            {
+                DeviceConfigId = device.Id,
+                PointConfigId = point.Id,
+                ValueNumeric = result.ValueNumeric,
+                ErrorText = result.ValueText,
+                TimestampUtc = DateTime.UtcNow,
+                Quality = ReadingQuality.Good
+            };
+
+            _db.ReadingHistories.Add(historyEntry);
+            _db.SaveChanges();
         }
     }
 }

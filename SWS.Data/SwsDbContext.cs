@@ -1,39 +1,45 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SWS.Core.Models;
 
-namespace SWS.Data;
-
-public sealed class SwsDbContext : DbContext
+namespace SWS.Data
 {
-    public SwsDbContext(DbContextOptions<SwsDbContext> options) : base(options) { }
-
-    public DbSet<DeviceConfig> DeviceConfigs => Set<DeviceConfig>();
-    public DbSet<PointConfig> PointConfigs => Set<PointConfig>();
-    public DbSet<LatestReading> LatestReadings => Set<LatestReading>();
-    public DbSet<ReadingHistory> ReadingHistories => Set<ReadingHistory>();
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    public sealed class SwsDbContext : DbContext
     {
-        base.OnModelCreating(modelBuilder);
+        public SwsDbContext(DbContextOptions<SwsDbContext> options) : base(options) { }
 
-        // LatestReading: enforce "one row per device+point"
-        modelBuilder.Entity<LatestReading>(b =>
-        {
-            b.HasIndex(x => new { x.DeviceConfigId, x.PointConfigId }).IsUnique();
-            b.Property(x => x.ValueNumeric).HasPrecision(18, 6);
-        });
+        public DbSet<DeviceConfig> DeviceConfigs => Set<DeviceConfig>();
+        public DbSet<PointConfig> PointConfigs => Set<PointConfig>();
+        public DbSet<LatestReading> LatestReadings => Set<LatestReading>();
+        public DbSet<ReadingHistory> ReadingHistories => Set<ReadingHistory>();
+        public DbSet<PointTemplate> PointTemplates { get; set; }
 
-        modelBuilder.Entity<PointConfig>(b =>
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            b.Property(x => x.Scale).HasPrecision(18, 6);
-        });
+            base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<ReadingHistory>(b =>
-        {
-            b.HasKey(x => x.Id);
-            b.HasIndex(x => new { x.PointConfigId, x.TimestampUtc });
-            b.HasIndex(x => new { x.DeviceConfigId, x.TimestampUtc });
-            b.Property(x => x.ValueNumeric).HasPrecision(18, 6);
-        });
+            // LatestReading: enforce "one row per device+point"
+            modelBuilder.Entity<LatestReading>(b =>
+            {
+                b.HasIndex(x => new { x.DeviceConfigId, x.PointConfigId }).IsUnique();
+                b.Property(x => x.ValueNumeric).HasPrecision(18, 6);
+            });
+
+            modelBuilder.Entity<PointConfig>(b =>
+            {
+                b.Property(x => x.Scale).HasPrecision(18, 6);
+            });
+
+            modelBuilder.Entity<ReadingHistory>(b =>
+            {
+                b.HasKey(x => x.Id);
+                b.HasIndex(x => new { x.PointConfigId, x.TimestampUtc });
+                b.HasIndex(x => new { x.DeviceConfigId, x.TimestampUtc });
+                b.Property(x => x.ValueNumeric).HasPrecision(18, 6);
+            });
+
+            modelBuilder.Entity<PointTemplate>()
+                .Property(p => p.Scale)
+                .HasPrecision(18, 6);  // Adjust precision and scale as needed
+        }
     }
 }

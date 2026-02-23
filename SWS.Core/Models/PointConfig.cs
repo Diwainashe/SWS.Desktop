@@ -11,9 +11,22 @@ public sealed class PointConfig
     public int DeviceConfigId { get; set; }
 
     /// <summary>
-    /// Unique key for the meaning of the point (e.g. "Weight.Display", "Flow.TPH").
+    /// Unique key for the meaning of the point (e.g. "Weight.Display", "Flowrate.Actual").
+    /// This is what lets you support multi-brand: the app reasons about keys, not addresses.
     /// </summary>
     public string Key { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Human label for UI (tiles, configuration screens).
+    /// Example: "Weight", "Flowrate", "Alarm Code".
+    /// </summary>
+    public string Label { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Engineering unit shown in UI.
+    /// Example: "kg", "t/h". Keep it empty for unitless values / flags.
+    /// </summary>
+    public string Unit { get; set; } = string.Empty;
 
     /// <summary>
     /// Which Modbus area this point belongs to.

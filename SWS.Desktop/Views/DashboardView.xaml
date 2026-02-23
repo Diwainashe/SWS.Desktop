@@ -1,0 +1,23 @@
+﻿<UserControl x:Class="SWS.Desktop.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal">
+            <Button Content="Test Read" Command="{Binding TestReadCommand}" Padding="14,6"/>
+            <TextBlock Text="{Binding StatusText}" Margin="12,0,0,0" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <TextBox Grid.Row="1"
+                 Margin="0,10,0,0"
+                 Text="{Binding OutputText}"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 VerticalScrollBarVisibility="Auto"/>
+    </Grid>
+</UserControl>

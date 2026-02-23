@@ -4,9 +4,8 @@ namespace SWS.Desktop;
 
 public partial class MainWindow : Window
 {
-    public MainWindow(MainViewModel vm)
+    public MainWindow()
     {
         InitializeComponent();
-        DataContext = vm;
     }
 }

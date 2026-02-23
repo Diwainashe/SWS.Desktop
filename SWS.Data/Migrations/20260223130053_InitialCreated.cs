@@ -5,7 +5,7 @@
 namespace SWS.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class AddHistorianAndNumericOnlyy : Migration
+    public partial class InitialCreated : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

@@ -49,7 +49,7 @@ public sealed class SmokeReadOnceService
             {
                 case ModbusPointArea.HoldingRegister:
                     {
-                        int offset = ModbusAddressing.ToZeroBasedOffset(point.Address);
+                        int offset = ModbusAddressing.HoldingToOffset(point.Address);
                         if (offset < 0 || offset > ushort.MaxValue)
                             return $"Point address {point.Address} produced invalid offset {offset}.";
 
@@ -60,7 +60,7 @@ public sealed class SmokeReadOnceService
 
                 case ModbusPointArea.InputRegister:
                     {
-                        int offset = ModbusAddressing.ToZeroBasedOffset(point.Address);
+                        int offset = ModbusAddressing.InputToOffset(point.Address);
                         if (offset < 0 || offset > ushort.MaxValue)
                             return $"Point address {point.Address} produced invalid offset {offset}.";
 
@@ -71,7 +71,7 @@ public sealed class SmokeReadOnceService
 
                 case ModbusPointArea.Coil:
                     {
-                        int offset = ModbusAddressing.ToZeroBasedOffset(point.Address);
+                        int offset = ModbusAddressing.CoilToOffset(point.Address);
                         if (offset < 0 || offset > ushort.MaxValue)
                             return $"Point address {point.Address} produced invalid offset {offset}.";
 
@@ -82,7 +82,7 @@ public sealed class SmokeReadOnceService
 
                 case ModbusPointArea.DiscreteInput:
                     {
-                        int offset = ModbusAddressing.ToZeroBasedOffset(point.Address);
+                        int offset = ModbusAddressing.DiscreteToOffset(point.Address);
                         if (offset < 0 || offset > ushort.MaxValue)
                             return $"Point address {point.Address} produced invalid offset {offset}.";
 

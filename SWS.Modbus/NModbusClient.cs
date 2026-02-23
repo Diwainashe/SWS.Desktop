@@ -3,65 +3,114 @@ using SWS.Core.Abstractions;
 using SWS.Core.Models;
 using System.Net.Sockets;
 
-namespace SWS.Modbus
+namespace SWS.Modbus;
+
+/// <summary>
+/// NModbus implementation for Modbus TCP.
+/// Converts manual-style addresses to 0-based offsets using ModbusAddressing.
+/// </summary>
+public sealed class NModbusClient : IModbusClient
 {
-    /// <summary>
-    /// NModbus implementation for Modbus TCP.
-    /// Converts "manual-style" holding register addresses (40001) to 0-based offsets.
-    /// </summary>
-    public sealed class NModbusClient : IModbusClient
+    public async Task<ushort[]> ReadHoldingRegistersAsync(
+        DeviceConfig device,
+        int logicalAddress,
+        ushort length,
+        CancellationToken ct)
     {
-        /// <summary>
-        /// Reads holding registers using Modbus function code 03.
-        /// </summary>
-        public async Task<ushort[]> ReadHoldingRegistersAsync(
-            DeviceConfig device,
-            int logicalHoldingRegisterAddress,
-            ushort length,
-            CancellationToken ct)
+        ushort start = ModbusAddressing.HoldingToOffset(logicalAddress);
+        return await ReadRegistersAsync(device, fc: RegisterFunction.Holding, start, length, ct);
+    }
+
+    public async Task<ushort[]> ReadInputRegistersAsync(
+        DeviceConfig device,
+        int logicalAddress,
+        ushort length,
+        CancellationToken ct)
+    {
+        ushort start = ModbusAddressing.InputToOffset(logicalAddress);
+        return await ReadRegistersAsync(device, fc: RegisterFunction.Input, start, length, ct);
+    }
+
+    public async Task<bool[]> ReadCoilsAsync(
+        DeviceConfig device,
+        int logicalAddress,
+        ushort length,
+        CancellationToken ct)
+    {
+        ushort start = ModbusAddressing.CoilToOffset(logicalAddress);
+        return await ReadBoolsAsync(device, boolType: BoolFunction.Coil, start, length, ct);
+    }
+
+    public async Task<bool[]> ReadDiscreteInputsAsync(
+        DeviceConfig device,
+        int logicalAddress,
+        ushort length,
+        CancellationToken ct)
+    {
+        ushort start = ModbusAddressing.DiscreteToOffset(logicalAddress);
+        return await ReadBoolsAsync(device, boolType: BoolFunction.DiscreteInput, start, length, ct);
+    }
+
+    // ---------------- internal helpers ----------------
+
+    private enum RegisterFunction { Holding, Input }
+    private enum BoolFunction { Coil, DiscreteInput }
+
+    private static async Task<ushort[]> ReadRegistersAsync(
+        DeviceConfig device,
+        RegisterFunction fc,
+        ushort startAddress,
+        ushort length,
+        CancellationToken ct)
+    {
+        using var tcpClient = new TcpClient();
+
+        // If cancellation triggers while connecting, dispose the socket
+        using (ct.Register(() => tcpClient.Dispose()))
         {
-            // Convert manual-style holding register address (e.g. 40001) to 0-based address
-            ushort startAddress = ToZeroBasedHoldingAddress(logicalHoldingRegisterAddress);
-
-            using var tcpClient = new TcpClient();
-
-            // Respect cancellation: dispose socket if cancellation triggers mid-connect
-            using (ct.Register(() => tcpClient.Dispose()))
-            {
-                await tcpClient.ConnectAsync(device.IpAddress, device.Port);
-            }
-
-            var factory = new ModbusFactory();
-            var master = factory.CreateMaster(tcpClient);
-
-            // NModbus uses the "slaveId" parameter even on TCP. Use device.UnitId (default 1).
-            ushort[] regs = master.ReadHoldingRegisters(device.UnitId, startAddress, length);
-
-            return regs;
+            await tcpClient.ConnectAsync(device.IpAddress, device.Port);
         }
 
-        private static ushort ToZeroBasedHoldingAddress(int logicalAddress)
+        var factory = new ModbusFactory();
+        var master = factory.CreateMaster(tcpClient);
+
+        // NModbus calls are sync; wrap in Task.Run to avoid blocking UI threads
+        return await Task.Run(() =>
         {
-            // Standardize to manual addresses like 40001 -> zero-based 0, 40002 -> zero-based 1
-            const int holdingBase = 40001;
-
-            if (logicalAddress < holdingBase)
+            return fc switch
             {
-                // Allow already-0-based addresses (useful for testing)
-                if (logicalAddress >= 0 && logicalAddress <= ushort.MaxValue)
-                    return (ushort)logicalAddress;
+                RegisterFunction.Holding => master.ReadHoldingRegisters(device.UnitId, startAddress, length),
+                RegisterFunction.Input => master.ReadInputRegisters(device.UnitId, startAddress, length),
+                _ => Array.Empty<ushort>()
+            };
+        }, ct);
+    }
 
-                throw new ArgumentOutOfRangeException(
-                    nameof(logicalAddress),
-                    "Holding register logical address should be >= 40001 (manual style).");
-            }
+    private static async Task<bool[]> ReadBoolsAsync(
+        DeviceConfig device,
+        BoolFunction boolType,
+        ushort startAddress,
+        ushort length,
+        CancellationToken ct)
+    {
+        using var tcpClient = new TcpClient();
 
-            int zeroBased = logicalAddress - holdingBase;
-
-            if (zeroBased < 0 || zeroBased > ushort.MaxValue)
-                throw new ArgumentOutOfRangeException(nameof(logicalAddress));
-
-            return (ushort)zeroBased;
+        using (ct.Register(() => tcpClient.Dispose()))
+        {
+            await tcpClient.ConnectAsync(device.IpAddress, device.Port);
         }
+
+        var factory = new ModbusFactory();
+        var master = factory.CreateMaster(tcpClient);
+
+        return await Task.Run(() =>
+        {
+            return boolType switch
+            {
+                BoolFunction.Coil => master.ReadCoils(device.UnitId, startAddress, length),
+                BoolFunction.DiscreteInput => master.ReadInputs(device.UnitId, startAddress, length),
+                _ => Array.Empty<bool>()
+            };
+        }, ct);
     }
 }

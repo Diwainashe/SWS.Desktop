@@ -12,8 +12,8 @@ using SWS.Data;
 namespace SWS.Data.Migrations
 {
     [DbContext(typeof(SwsDbContext))]
-    [Migration("20260219091851_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260223130053_InitialCreated")]
+    partial class InitialCreated
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -69,6 +69,9 @@ namespace SWS.Data.Migrations
                     b.Property<int>("DeviceConfigId")
                         .HasColumnType("int");
 
+                    b.Property<string>("ErrorText")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("PointConfigId")
                         .HasColumnType("int");
 
@@ -85,10 +88,10 @@ namespace SWS.Data.Migrations
                         .HasPrecision(18, 6)
                         .HasColumnType("decimal(18,6)");
 
-                    b.Property<string>("ValueText")
-                        .HasColumnType("nvarchar(max)");
-
                     b.HasKey("Id");
+
+                    b.HasIndex("DeviceConfigId", "PointConfigId")
+                        .IsUnique();
 
                     b.ToTable("LatestReadings");
                 });
@@ -104,10 +107,16 @@ namespace SWS.Data.Migrations
                     b.Property<int>("Address")
                         .HasColumnType("int");
 
+                    b.Property<int>("Area")
+                        .HasColumnType("int");
+
                     b.Property<int>("DataType")
                         .HasColumnType("int");
 
                     b.Property<int>("DeviceConfigId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("HistoryIntervalMs")
                         .HasColumnType("int");
 
                     b.Property<bool>("IsEssential")
@@ -117,8 +126,15 @@ namespace SWS.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("Length")
                         .HasColumnType("int");
+
+                    b.Property<bool>("LogToHistory")
+                        .HasColumnType("bit");
 
                     b.Property<int>("PollRateMs")
                         .HasColumnType("int");
@@ -127,9 +143,110 @@ namespace SWS.Data.Migrations
                         .HasPrecision(18, 6)
                         .HasColumnType("decimal(18,6)");
 
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
 
                     b.ToTable("PointConfigs");
+                });
+
+            modelBuilder.Entity("SWS.Core.Models.PointTemplate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DefaultArea")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DefaultDataType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DefaultLength")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DeviceType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("HistoryIntervalMs")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsEssential")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<bool>("LogToHistory")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("PollRateMs")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Scale")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.ToTable("PointTemplates");
+                });
+
+            modelBuilder.Entity("SWS.Core.Models.ReadingHistory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("DeviceConfigId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ErrorText")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("PointConfigId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Quality")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("TimestampUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("ValueNumeric")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceConfigId", "TimestampUtc");
+
+                    b.HasIndex("PointConfigId", "TimestampUtc");
+
+                    b.ToTable("ReadingHistories");
                 });
 #pragma warning restore 612, 618
         }

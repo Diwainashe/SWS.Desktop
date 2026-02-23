@@ -12,8 +12,8 @@ using SWS.Data;
 namespace SWS.Data.Migrations
 {
     [DbContext(typeof(SwsDbContext))]
-    [Migration("20260220112012_AddPointTemplate")]
-    partial class AddPointTemplate
+    [Migration("20260223130028_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -126,6 +126,10 @@ namespace SWS.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("Length")
                         .HasColumnType("int");
 
@@ -138,6 +142,10 @@ namespace SWS.Data.Migrations
                     b.Property<decimal>("Scale")
                         .HasPrecision(18, 6)
                         .HasColumnType("decimal(18,6)");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -152,31 +160,55 @@ namespace SWS.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("Address")
+                    b.Property<int>("DefaultArea")
                         .HasColumnType("int");
 
-                    b.Property<int>("Area")
+                    b.Property<int>("DefaultDataType")
                         .HasColumnType("int");
 
-                    b.Property<int>("DataType")
+                    b.Property<int>("DefaultLength")
                         .HasColumnType("int");
 
-                    b.Property<string>("DisplayName")
+                    b.Property<string>("DeviceType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("HistoryIntervalMs")
+                        .HasColumnType("int");
 
                     b.Property<bool>("IsEssential")
                         .HasColumnType("bit");
 
                     b.Property<string>("Key")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<bool>("LogToHistory")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("PollRateMs")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("Scale")
                         .HasPrecision(18, 6)
                         .HasColumnType("decimal(18,6)");
 
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
 
                     b.ToTable("PointTemplates");
                 });

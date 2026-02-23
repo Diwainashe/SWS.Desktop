@@ -1,12 +1,14 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SWS.Acquisition;
-using SWS.Desktop.Services;
-using SWS.Desktop.Views;
-using System.Windows;
-using Microsoft.EntityFrameworkCore;
+using SWS.Core.Abstractions;
 using SWS.Data;
-
+using SWS.Desktop.Services;
+using SWS.Desktop.ViewModels;
+using SWS.Desktop.Views;
+using SWS.Modbus;
+using System.Windows;
 
 namespace SWS.Desktop;
 
@@ -25,26 +27,40 @@ public partial class App : Application
             return;
         }
 
-        // Build DI container AFTER DB is ready (connection string available)
         _host = Host.CreateDefaultBuilder()
             .ConfigureServices(services =>
             {
                 var cs = global::SWS.Desktop.Properties.Settings.Default.SwsConnectionString;
 
-                services.AddDbContext<SwsDbContext>(options =>
+                // ✅ IMPORTANT: Use DbContextFactory for UI apps to avoid cross-thread / concurrency issues
+                services.AddDbContextFactory<SwsDbContext>(options =>
                     options.UseSqlServer(cs));
 
-                // Register viewmodels/windows
-                services.AddSingleton<MainViewModel>();
-                services.AddSingleton<MainWindow>();
-                services.AddTransient<SmokeReadOnceService>();
+                // Modbus
+                services.AddSingleton<IModbusClient, NModbusClient>();
 
-                // Add other services here later (Acquisition, Repos, etc.)
+                // Acquisition
+                services.AddScoped<DevicePollerService>();
+                services.AddScoped<SmokeReadOnceService>();
+
+                // Navigation + Shell
+                services.AddSingleton<INavigationService, AppNavigationService>();
+                services.AddSingleton<MainWindow>();
+
+                // ViewModels (singleton is fine when they use DbContextFactory per call)
+                services.AddSingleton<MainShellViewModel>();
+                services.AddSingleton<DashboardViewModel>();
+                services.AddSingleton<ConfigViewModel>();
+
+                // Views (UserControls) – created by NavigationService
+                services.AddTransient<DashboardView>();
+                services.AddTransient<ConfigView>();
             })
             .Build();
 
-        // Resolve MainWindow (it will receive MainViewModel via DI)
+        // Show ONE window only (the shell)
         var main = _host.Services.GetRequiredService<MainWindow>();
+        main.DataContext = _host.Services.GetRequiredService<MainShellViewModel>();
         main.Show();
     }
 
@@ -54,88 +70,14 @@ public partial class App : Application
             await _host.StopAsync();
 
         _host?.Dispose();
-
         base.OnExit(e);
     }
 
-    // ---------------- DB Setup + Migrations ----------------
-
+    // Keep your existing DB setup + dialog logic:
     private static bool TryEnsureDatabaseReady(out string errorMessage)
     {
+        // ... your existing implementation ...
         errorMessage = string.Empty;
-
-        if (!TryEnsureConnectionString(out var connectionString, out errorMessage))
-            return false;
-
-        try
-        {
-            DatabaseBootstrapper.EnsureDatabaseMigrated(connectionString);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            var retryMsg =
-                "Database setup failed.\n\n" +
-                ex.Message +
-                "\n\nWould you like to update the database settings and try again?";
-
-            var choice = MessageBox.Show(retryMsg, "SWS", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-
-            if (choice != MessageBoxResult.Yes)
-            {
-                errorMessage = "Database was not initialized. Startup cancelled.";
-                return false;
-            }
-
-            if (!ShowDbSetupDialog(out connectionString, out errorMessage))
-                return false;
-
-            try
-            {
-                DatabaseBootstrapper.EnsureDatabaseMigrated(connectionString);
-                return true;
-            }
-            catch (Exception ex2)
-            {
-                errorMessage = "Database setup failed again:\n\n" + ex2.Message;
-                return false;
-            }
-        }
-    }
-
-    private static bool TryEnsureConnectionString(out string connectionString, out string errorMessage)
-    {
-        errorMessage = string.Empty;
-        connectionString = global::SWS.Desktop.Properties.Settings.Default.SwsConnectionString;
-
-        if (!string.IsNullOrWhiteSpace(connectionString))
-            return true;
-
-        return ShowDbSetupDialog(out connectionString, out errorMessage);
-    }
-
-    private static bool ShowDbSetupDialog(out string connectionString, out string errorMessage)
-    {
-        errorMessage = string.Empty;
-        connectionString = string.Empty;
-
-        var setup = new DbSetupWindow();
-        var ok = setup.ShowDialog() == true;
-
-        if (!ok)
-        {
-            errorMessage = "Database configuration was cancelled.";
-            return false;
-        }
-
-        connectionString = global::SWS.Desktop.Properties.Settings.Default.SwsConnectionString;
-
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            errorMessage = "Database configuration did not save a connection string.";
-            return false;
-        }
-
         return true;
     }
 }

@@ -3,9 +3,9 @@ using SWS.Desktop.ViewModels;
 
 namespace SWS.Desktop.Views;
 
-public partial class DashboardView : UserControl
+public partial class DevicesView : UserControl
 {
-    public DashboardView(DashboardPageViewModel vm)
+    public DevicesView(DevicesViewModel vm)
     {
         InitializeComponent();
         DataContext = vm;

@@ -2,22 +2,31 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <Grid Margin="12">
+    <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <StackPanel Orientation="Horizontal">
-            <Button Content="Test Read" Command="{Binding TestReadCommand}" Padding="14,6"/>
-            <TextBlock Text="{Binding StatusText}" Margin="12,0,0,0" VerticalAlignment="Center"/>
+            <TextBlock Text="Live Readings" FontSize="18" FontWeight="SemiBold"/>
+            <Button Content="Refresh" Margin="12,0,0,0" Padding="10,4" Command="{Binding RefreshCommand}"/>
         </StackPanel>
 
-        <TextBox Grid.Row="1"
-                 Margin="0,10,0,0"
-                 Text="{Binding OutputText}"
-                 IsReadOnly="True"
-                 AcceptsReturn="True"
-                 VerticalScrollBarVisibility="Auto"/>
+        <DataGrid Grid.Row="1"
+                  Margin="0,12,0,0"
+                  ItemsSource="{Binding Rows}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="160"/>
+                <DataGridTextColumn Header="Label" Binding="{Binding Label}" Width="160"/>
+                <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="220"/>
+                <DataGridTextColumn Header="Value" Binding="{Binding ValueNumeric}" Width="120"/>
+                <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="80"/>
+                <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="100"/>
+                <DataGridTextColumn Header="Timestamp (UTC)" Binding="{Binding TimestampUtc}" Width="180"/>
+            </DataGrid.Columns>
+        </DataGrid>
     </Grid>
 </UserControl>

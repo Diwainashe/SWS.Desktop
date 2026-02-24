@@ -1,41 +1,27 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Extensions.DependencyInjection;
-using SWS.Acquisition;
+using SWS.Desktop.Services;
 
 namespace SWS.Desktop.ViewModels;
 
 public partial class DashboardViewModel : ObservableObject
 {
-    private readonly IServiceScopeFactory _scopeFactory;
+    public INavigationService Navigation { get; }
 
-    [ObservableProperty] private string _outputText = "Ready.\n";
-    [ObservableProperty] private string _statusText = "Idle";
-
-    public DashboardViewModel(IServiceScopeFactory scopeFactory)
+    public DashboardViewModel(INavigationService navigation)
     {
-        _scopeFactory = scopeFactory;
+        Navigation = navigation;
+
+        // default page
+        _ = Navigation.NavigateToAsync(AppPageKey.Dashboard);
     }
 
     [RelayCommand]
-    private async Task TestReadAsync()
-    {
-        StatusText = "Reading...";
+    private Task GoDashboardAsync() => Navigation.NavigateToAsync(AppPageKey.Dashboard);
 
-        try
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var runner = scope.ServiceProvider.GetRequiredService<SmokeReadOnceService>();
+    [RelayCommand]
+    private Task GoDevicesAsync() => Navigation.NavigateToAsync(AppPageKey.Devices);
 
-            string result = await Task.Run(() => runner.ReadOnceAndUpsertLatest());
-
-            OutputText = result + "\n" + OutputText;
-            StatusText = "OK";
-        }
-        catch (Exception ex)
-        {
-            OutputText = $"ERROR: {ex.Message}\n{ex}\n\n" + OutputText;
-            StatusText = "Error";
-        }
-    }
+    [RelayCommand]
+    private Task GoPointsAsync() => Navigation.NavigateToAsync(AppPageKey.Points);
 }

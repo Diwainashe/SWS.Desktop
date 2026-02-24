@@ -16,7 +16,7 @@ public partial class App : Application
 {
     private IHost? _host;
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -32,35 +32,47 @@ public partial class App : Application
             {
                 var cs = global::SWS.Desktop.Properties.Settings.Default.SwsConnectionString;
 
-                // ✅ IMPORTANT: Use DbContextFactory for UI apps to avoid cross-thread / concurrency issues
+                // EF: Factory is correct for desktop apps
                 services.AddDbContextFactory<SwsDbContext>(options =>
                     options.UseSqlServer(cs));
 
                 // Modbus
                 services.AddSingleton<IModbusClient, NModbusClient>();
 
-                // Acquisition
+                // Acquisition + data services (scoped is fine; navigation will create scopes)
                 services.AddScoped<DevicePollerService>();
                 services.AddScoped<SmokeReadOnceService>();
+                services.AddScoped<ConfigDataService>();
+
+                // Background poller
+                services.AddHostedService<PollingHostedService>();
 
                 // Navigation + Shell
                 services.AddSingleton<INavigationService, AppNavigationService>();
+                services.AddSingleton<MainShellViewModel>();
+
+                // Main window (single window app)
                 services.AddSingleton<MainWindow>();
 
-                // ViewModels (singleton is fine when they use DbContextFactory per call)
-                services.AddSingleton<MainShellViewModel>();
-                services.AddSingleton<DashboardViewModel>();
-                services.AddSingleton<ConfigViewModel>();
+                // Pages + Page VMs MUST be transient (created per navigation scope)
+                services.AddTransient<DashboardPageViewModel>();
+                services.AddTransient<DevicesViewModel>();
+                services.AddTransient<PointsViewModel>();
 
-                // Views (UserControls) – created by NavigationService
                 services.AddTransient<DashboardView>();
-                services.AddTransient<ConfigView>();
+                services.AddTransient<DevicesView>();
+                services.AddTransient<PointsView>();
+
+                // Add later when you create it:
+                // services.AddTransient<ConfigViewModel>();
+                // services.AddTransient<ConfigView>();
             })
             .Build();
 
+        await _host.StartAsync(); // ✅ starts BackgroundService
+
         // Show ONE window only (the shell)
         var main = _host.Services.GetRequiredService<MainWindow>();
-        main.DataContext = _host.Services.GetRequiredService<MainShellViewModel>();
         main.Show();
     }
 

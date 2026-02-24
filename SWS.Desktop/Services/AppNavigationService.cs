@@ -1,45 +1,49 @@
-﻿using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Windows.Controls;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
-using SWS.Desktop.Views;
 
 namespace SWS.Desktop.Services;
 
 /// <summary>
-/// App-level navigation between views inside the main window.
+/// Navigation service that keeps the entire app inside ONE window.
+/// It creates a fresh DI scope per page to avoid:
+/// - DbContext cross-thread issues
+/// - scoped service injected into singleton VM issues
+/// - stale view models / stale data contexts
 /// </summary>
-public sealed class AppNavigationService : INavigationService
+public sealed partial class AppNavigationService : ObservableObject, INavigationService
 {
-    private readonly IServiceProvider _sp;
-    private UserControl _currentView;
+    private readonly IServiceProvider _root;
 
-    public event PropertyChangedEventHandler? PropertyChanged;
+    // We keep the active page scope so all its scoped services live together,
+    // and we dispose them when navigating away.
+    private IServiceScope? _currentScope;
 
-    public AppNavigationService(IServiceProvider sp)
+    [ObservableProperty]
+    private object? _currentView;
+
+    private readonly Dictionary<AppPageKey, Type> _routes = new()
     {
-        _sp = sp;
+        { AppPageKey.Dashboard, typeof(Views.DashboardView) },
+        { AppPageKey.Devices,   typeof(Views.DevicesView) },
+        { AppPageKey.Points,    typeof(Views.PointsView) },
+        // Add later when you have it:
+        // { AppPageKey.Config, typeof(Views.ConfigView) }
+    };
 
-        // Default page
-        _currentView = _sp.GetRequiredService<DashboardView>();
-    }
+    public AppNavigationService(IServiceProvider root) => _root = root;
 
-    public UserControl CurrentView
+    public Task NavigateToAsync(AppPageKey key)
     {
-        get => _currentView;
-        private set
-        {
-            if (ReferenceEquals(_currentView, value)) return;
-            _currentView = value;
-            OnPropertyChanged();
-        }
-    }
+        if (!_routes.TryGetValue(key, out var viewType))
+            throw new InvalidOperationException($"No route for {key}");
 
-    public void NavigateTo<TView>() where TView : UserControl
-    {
-        CurrentView = _sp.GetRequiredService<TView>();
-    }
+        // Dispose the previous page scope (releases DbContexts, services, etc.)
+        _currentScope?.Dispose();
+        _currentScope = _root.CreateScope();
 
-    private void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        // Resolve the view *inside the scope* so it can safely use scoped services
+        CurrentView = _currentScope.ServiceProvider.GetRequiredService(viewType);
+
+        return Task.CompletedTask;
+    }
 }

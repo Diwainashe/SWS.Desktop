@@ -28,7 +28,7 @@ public partial class PointsViewModel : ObservableObject
     [ObservableProperty] private ushort _editLength = 1;
     [ObservableProperty] private PointDataType _editDataType = PointDataType.UInt16;
     [ObservableProperty] private decimal _editScale = 1m;
-    [ObservableProperty] private int _editPollRateMs = 500;
+    [ObservableProperty] private int _editPollRateMs = 5000;
     [ObservableProperty] private bool _editEssential = false;
     [ObservableProperty] private bool _editLogToHistory = false;
     [ObservableProperty] private int _editHistoryIntervalMs = 60000;
@@ -98,12 +98,39 @@ public partial class PointsViewModel : ObservableObject
         EditLength = 1;
         EditDataType = PointDataType.UInt16;
         EditScale = 1m;
-        EditPollRateMs = 500;
+        EditPollRateMs = 5000;
         EditEssential = false;
         EditLogToHistory = false;
         EditHistoryIntervalMs = 60000;
         Status = "New point.";
     }
+
+    partial void OnEditAreaChanged(ModbusPointArea value) => ApplyDataTypeGuards();
+    partial void OnEditDataTypeChanged(PointDataType value) => ApplyDataTypeGuards();
+
+    // ✅ call this whenever Area/DataType changes OR just before Save
+    private void ApplyDataTypeGuards()
+    {
+        // If it’s a bit-area, force Bool (coils + discrete inputs are bits)
+        if (EditArea is ModbusPointArea.Coil or ModbusPointArea.DiscreteInput)
+            EditDataType = PointDataType.Bool;
+
+        // If Bool, force stable config
+        if (EditDataType == PointDataType.Bool)
+        {
+            EditLength = 1;
+            EditScale = 1m;
+            EditUnit = string.Empty;
+            return;
+        }
+
+        // If 32-bit types, force 2 registers
+        if (EditDataType is PointDataType.UInt32 or PointDataType.Int32 or PointDataType.Float32)
+            EditLength = 2;
+        else
+            EditLength = 1;
+    }
+
 
     [RelayCommand]
     private async Task SaveAsync()

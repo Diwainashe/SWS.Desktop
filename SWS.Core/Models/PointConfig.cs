@@ -89,5 +89,6 @@ public enum PointDataType
     Int16,
     UInt32,
     Int32,
-    Float32
+    Float32,
+    Bool
 }

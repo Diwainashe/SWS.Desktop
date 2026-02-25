@@ -2,6 +2,7 @@
 using SWS.Core.Abstractions;
 using SWS.Core.Models;
 using SWS.Data;
+using SWS.Modbus;
 using System.Collections.Concurrent;
 using System.Net.Sockets;
 
@@ -90,38 +91,66 @@ public sealed class DevicePollerService
     /// Reads a single point based on PointConfig settings.
     /// MVP: only HoldingRegister supported until we extend IModbusClient.
     /// </summary>
+    // File: SWS.Acquisition/DevicePollerService.cs
     private async Task<ReadResult> ReadPointAsync(DeviceConfig device, PointConfig point, CancellationToken ct)
     {
         try
         {
-            if (point.Area != ModbusPointArea.HoldingRegister)
+            // MVP: skip unconfigured
+            if (point.Address <= 0)
+                return ReadResult.Error(ReadingQuality.BadData, "Point not configured (Address <= 0).");
+
+            switch (point.Area)
             {
-                return ReadResult.Error(
-                    ReadingQuality.BadData,
-                    $"Area '{point.Area}' not supported yet (MVP supports HoldingRegister only).");
+                case ModbusPointArea.HoldingRegister:
+                    {
+                        ushort[] regs = await _modbus.ReadHoldingRegistersAsync(device, point.Address, point.Length, ct);
+                        var numeric = ModbusDecoder.DecodeToNumeric(regs, point);
+                        if (numeric is null)
+                            return ReadResult.Error(ReadingQuality.BadData, "Decode returned null.");
+                        return ReadResult.Ok(numeric.Value);
+                    }
+
+                case ModbusPointArea.InputRegister:
+                    {
+                        ushort[] regs = await _modbus.ReadInputRegistersAsync(device, point.Address, point.Length, ct);
+                        var numeric = ModbusDecoder.DecodeToNumeric(regs, point);
+                        if (numeric is null)
+                            return ReadResult.Error(ReadingQuality.BadData, "Decode returned null.");
+                        return ReadResult.Ok(numeric.Value);
+                    }
+
+                case ModbusPointArea.Coil:
+                    {
+                        // Coils are bits. Force Bool behavior:
+                        // - length must be 1 for a single coil point
+                        // - numeric stored as 0/1 for charts and simple UI
+                        ushort len = point.Length == 0 ? (ushort)1 : point.Length;
+
+                        bool[] bits = await _modbus.ReadCoilsAsync(device, point.Address, len, ct);
+
+                        // For your UI/DB model, treat first bit as this point’s value.
+                        bool value = bits.Length > 0 && bits[0];
+                        return ReadResult.Ok(value ? 1m : 0m);
+                    }
+
+                case ModbusPointArea.DiscreteInput:
+                    {
+                        ushort len = point.Length == 0 ? (ushort)1 : point.Length;
+
+                        bool[] bits = await _modbus.ReadDiscreteInputsAsync(device, point.Address, len, ct);
+
+                        bool value = bits.Length > 0 && bits[0];
+                        return ReadResult.Ok(value ? 1m : 0m);
+                    }
+
+                default:
+                    return ReadResult.Error(ReadingQuality.BadData, $"Unknown Area '{point.Area}'.");
             }
-
-            ushort[] regs = await _modbus.ReadHoldingRegistersAsync(device, point.Address, point.Length, ct);
-
-            var numeric = SWS.Modbus.ModbusDecoder.DecodeToNumeric(regs, point);
-
-            if (numeric is null)
-                return ReadResult.Error(ReadingQuality.BadData, "Decode returned null.");
-
-            return ReadResult.Ok(numeric.Value);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (SocketException ex)
-        {
-            return ReadResult.Error(ReadingQuality.Timeout, ex.Message);
-        }
-        catch (Exception ex)
-        {
-            return ReadResult.Error(ReadingQuality.Exception, ex.Message);
-        }
+        catch (OperationCanceledException) { throw; }
+        catch (SocketException ex) { return ReadResult.Error(ReadingQuality.Timeout, ex.Message); }
+        catch (Exception ex) { return ReadResult.Error(ReadingQuality.Exception, ex.Message); }
     }
 
     private async Task UpsertLatestAsync(

@@ -11,6 +11,8 @@ namespace SWS.Modbus
 
             decimal? raw = point.DataType switch
             {
+                // Treat any non-zero as true
+                PointDataType.Bool => regs[0] == 0 ? 0m : 1m,
                 PointDataType.UInt16 => regs[0],
                 PointDataType.Int16 => unchecked((short)regs[0]),
                 PointDataType.UInt32 => regs.Length >= 2 ? CombineUInt32(regs[0], regs[1]) : null,
@@ -19,7 +21,11 @@ namespace SWS.Modbus
                 _ => null
             };
 
-            return raw is null ? null : raw.Value * point.Scale;
+            // For Bool, scale is meaningless; ignore scaling (keep 0/1 clean)
+            if (raw is null) return null;
+            if (point.DataType == PointDataType.Bool) return raw;
+
+            return raw.Value * point.Scale;
         }
 
         public static string DecodeToText(ushort[] regs, PointConfig point)

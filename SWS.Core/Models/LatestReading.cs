@@ -11,7 +11,7 @@ public sealed class LatestReading
     public int DeviceConfigId { get; set; }
     public int PointConfigId { get; set; }
 
-    public DateTime TimestampUtc { get; set; }
+    public DateTime TimestampLocal { get; set; }
 
     public decimal? ValueNumeric { get; set; }
 
@@ -23,7 +23,7 @@ public sealed class LatestReading
 
     public ReadingQuality Quality { get; set; } = ReadingQuality.Good;
 
-    public DateTime UpdatedUtc { get; set; }
+    public DateTime UpdatedLocal { get; set; }
 }
 
 public enum ReadingQuality

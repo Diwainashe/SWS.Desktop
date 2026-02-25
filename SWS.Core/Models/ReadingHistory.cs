@@ -11,7 +11,7 @@ public sealed class ReadingHistory
     public int DeviceConfigId { get; set; }
     public int PointConfigId { get; set; }
 
-    public DateTime TimestampUtc { get; set; }
+    public DateTime TimestampLocal { get; set; }
 
     public decimal? ValueNumeric { get; set; }
 

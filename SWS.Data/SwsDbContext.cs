@@ -33,8 +33,8 @@ public sealed class SwsDbContext : DbContext
         modelBuilder.Entity<ReadingHistory>(b =>
         {
             b.HasKey(x => x.Id);
-            b.HasIndex(x => new { x.PointConfigId, x.TimestampUtc });
-            b.HasIndex(x => new { x.DeviceConfigId, x.TimestampUtc });
+            b.HasIndex(x => new { x.PointConfigId, x.TimestampLocal });
+            b.HasIndex(x => new { x.DeviceConfigId, x.TimestampLocal });
             b.Property(x => x.ValueNumeric).HasPrecision(18, 6);
         });
 

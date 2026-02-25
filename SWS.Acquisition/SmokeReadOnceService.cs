@@ -3,6 +3,7 @@ using System.Linq;
 using System.Net.Sockets;
 using Microsoft.EntityFrameworkCore;
 using NModbus;
+using SWS.Core.Abstractions;
 using SWS.Core.Models;
 using SWS.Data;
 using SWS.Modbus;
@@ -12,10 +13,12 @@ namespace SWS.Acquisition;
 public sealed class SmokeReadOnceService
 {
     private readonly SwsDbContext _db;
+    private readonly ITimeProvider _time;
 
-    public SmokeReadOnceService(SwsDbContext db)
+    public SmokeReadOnceService(SwsDbContext db, ITimeProvider time)
     {
         _db = db;
+        _time = time;
     }
 
     public string ReadOnceAndUpsertLatest()
@@ -118,7 +121,7 @@ public sealed class SmokeReadOnceService
 
     private void UpsertLatestSuccess(int deviceId, int pointId, decimal? valueNumeric)
     {
-        var nowUtc = DateTime.UtcNow;
+        var nowLocal = _time.NowLocal;
 
         var row = _db.LatestReadings
             .FirstOrDefault(r => r.DeviceConfigId == deviceId && r.PointConfigId == pointId);
@@ -133,21 +136,21 @@ public sealed class SmokeReadOnceService
             _db.LatestReadings.Add(row);
         }
 
-        row.TimestampUtc = nowUtc;
+        row.TimestampLocal = nowLocal;
         row.ValueNumeric = valueNumeric;
 
         // IMPORTANT: do not store text for normal readings
         row.ErrorText = null;
 
         row.Quality = ReadingQuality.Good;
-        row.UpdatedUtc = nowUtc;
+        row.UpdatedLocal = nowLocal;
 
         _db.SaveChanges();
     }
 
     private void UpsertLatestError(int deviceId, int pointId, ReadingQuality quality, string message)
     {
-        var nowUtc = DateTime.UtcNow;
+        var nowLocal = _time.NowLocal;
 
         var row = _db.LatestReadings
             .FirstOrDefault(r => r.DeviceConfigId == deviceId && r.PointConfigId == pointId);
@@ -162,14 +165,14 @@ public sealed class SmokeReadOnceService
             _db.LatestReadings.Add(row);
         }
 
-        row.TimestampUtc = nowUtc;
+        row.TimestampLocal = nowLocal;
         row.ValueNumeric = null;
 
         // Only errors get text
         row.ErrorText = message;
 
         row.Quality = quality;
-        row.UpdatedUtc = nowUtc;
+        row.UpdatedLocal = nowLocal;
 
         _db.SaveChanges();
     }
@@ -188,14 +191,14 @@ public sealed class SmokeReadOnceService
         if (point.HistoryIntervalMs <= 0)
             return;
 
-        var nowUtc = DateTime.UtcNow;
-        var minTimeUtc = nowUtc.AddMilliseconds(-point.HistoryIntervalMs);
+        var nowLocal = _time.NowLocal;
+        var minTimeUtc = nowLocal.AddMilliseconds(-point.HistoryIntervalMs);
 
         // Simple throttling: only write if last history record is older than interval
         var last = _db.ReadingHistories.AsNoTracking()
             .Where(h => h.DeviceConfigId == deviceId && h.PointConfigId == point.Id)
-            .OrderByDescending(h => h.TimestampUtc)
-            .Select(h => (DateTime?)h.TimestampUtc)
+            .OrderByDescending(h => h.TimestampLocal)
+            .Select(h => (DateTime?)h.TimestampLocal)
             .FirstOrDefault();
 
         if (last.HasValue && last.Value > minTimeUtc)
@@ -205,7 +208,7 @@ public sealed class SmokeReadOnceService
         {
             DeviceConfigId = deviceId,
             PointConfigId = point.Id,
-            TimestampUtc = nowUtc,
+            TimestampLocal = nowLocal,
             ValueNumeric = valueNumeric,
             Quality = quality,
             ErrorText = quality == ReadingQuality.Good ? null : errorText

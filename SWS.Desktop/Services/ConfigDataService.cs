@@ -107,7 +107,7 @@ public sealed class ConfigDataService
                 Unit = p.Unit,
                 ValueNumeric = r.ValueNumeric,
                 Quality = r.Quality,
-                TimestampUtc = r.TimestampUtc
+                TimestampLocal = r.TimestampLocal
             }
         ).ToListAsync(ct);
     }
@@ -123,5 +123,5 @@ public sealed class LatestReadingRow
     public string Unit { get; set; } = "";
     public decimal? ValueNumeric { get; set; }
     public SWS.Core.Models.ReadingQuality Quality { get; set; }
-    public DateTime TimestampUtc { get; set; }
+    public DateTime TimestampLocal { get; set; }
 }

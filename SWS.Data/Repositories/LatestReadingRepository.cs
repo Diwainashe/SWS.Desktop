@@ -27,11 +27,11 @@ public sealed class LatestReadingRepository
         }
         else
         {
-            existing.TimestampUtc = latest.TimestampUtc;
+            existing.TimestampLocal = latest.TimestampLocal;
             existing.ValueNumeric = latest.ValueNumeric;
             existing.ErrorText = latest.ErrorText;
             existing.Quality = latest.Quality;
-            existing.UpdatedUtc = DateTime.UtcNow;
+            existing.UpdatedLocal = DateTime.UtcNow;
         }
 
         await _db.SaveChangesAsync(ct);

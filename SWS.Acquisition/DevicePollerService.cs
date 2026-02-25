@@ -3,6 +3,7 @@ using SWS.Core.Abstractions;
 using SWS.Core.Models;
 using SWS.Data;
 using SWS.Modbus;
+using SWS.Desktop.Services;
 using System.Collections.Concurrent;
 using System.Net.Sockets;
 
@@ -22,14 +23,18 @@ public sealed class DevicePollerService
 {
     private readonly SwsDbContext _db;
     private readonly IModbusClient _modbus;
+    private readonly ILatestReadingsBus _latestBus;
+    private readonly ITimeProvider _time;
 
     // Per point (DeviceId:PointId) next allowed poll timestamp
     private static readonly ConcurrentDictionary<string, DateTime> _nextPollUtc = new();
 
-    public DevicePollerService(SwsDbContext db, IModbusClient modbus)
+    public DevicePollerService(SwsDbContext db, IModbusClient modbus, ILatestReadingsBus latestBus, ITimeProvider time)
     {
         _db = db;
         _modbus = modbus;
+        _latestBus = latestBus;
+        _time = time;
     }
 
     /// <summary>
@@ -37,7 +42,7 @@ public sealed class DevicePollerService
     /// </summary>
     public async Task PollOnceAsync(CancellationToken ct)
     {
-        var nowUtc = DateTime.UtcNow;
+        var nowLocal = _time.NowLocal;
 
         var devices = await _db.DeviceConfigs
             .AsNoTracking()
@@ -51,6 +56,8 @@ public sealed class DevicePollerService
                 .Where(p => p.DeviceConfigId == device.Id)
                 .ToListAsync(ct);
 
+            bool anyLatestChangedForDevice = false;
+
             foreach (var point in points)
             {
                 // Only poll configured points
@@ -58,25 +65,30 @@ public sealed class DevicePollerService
                     continue;
 
                 // Respect PollRateMs per point
-                if (!IsPollDue(device.Id, point.Id, point.PollRateMs, nowUtc))
+                if (!IsPollDue(device.Id, point.Id, point.PollRateMs, nowLocal))
                     continue;
 
                 var result = await ReadPointAsync(device, point, ct);
 
-                await UpsertLatestAsync(device.Id, point.Id, nowUtc, result, ct);
+                await UpsertLatestAsync(device.Id, point.Id, nowLocal, result, ct);
+                anyLatestChangedForDevice = true;
 
                 if (point.LogToHistory)
-                    await TryAppendHistoryAsync(device.Id, point.Id, nowUtc, point.HistoryIntervalMs, result, ct);
+                    await TryAppendHistoryAsync(device.Id, point.Id, nowLocal, point.HistoryIntervalMs, result, ct);
             }
+            await _db.SaveChangesAsync(ct);
+            // Notify UI
+            if (anyLatestChangedForDevice)
+                _latestBus.Publish(new LatestReadingsUpdatedEventArgs(device.Id, nowLocal));
         }
 
-        await _db.SaveChangesAsync(ct);
+
     }
 
     private static bool IsPollDue(int deviceId, int pointId, int pollRateMs, DateTime nowUtc)
     {
         if (pollRateMs <= 0)
-            pollRateMs = 500;
+            pollRateMs = 5000;
 
         string key = $"{deviceId}:{pointId}";
 
@@ -156,7 +168,7 @@ public sealed class DevicePollerService
     private async Task UpsertLatestAsync(
         int deviceId,
         int pointId,
-        DateTime nowUtc,
+        DateTime nowLocal,
         ReadResult result,
         CancellationToken ct)
     {
@@ -173,8 +185,8 @@ public sealed class DevicePollerService
             _db.LatestReadings.Add(existing);
         }
 
-        existing.TimestampUtc = nowUtc;
-        existing.UpdatedUtc = nowUtc;
+        existing.TimestampLocal = nowLocal;
+        existing.UpdatedLocal = nowLocal;
         existing.Quality = result.Quality;
 
         if (result.Quality == ReadingQuality.Good)
@@ -192,7 +204,7 @@ public sealed class DevicePollerService
     private async Task TryAppendHistoryAsync(
         int deviceId,
         int pointId,
-        DateTime nowUtc,
+        DateTime nowLocal,
         int historyIntervalMs,
         ReadResult result,
         CancellationToken ct)
@@ -203,18 +215,18 @@ public sealed class DevicePollerService
         var last = await _db.ReadingHistories
             .AsNoTracking()
             .Where(h => h.DeviceConfigId == deviceId && h.PointConfigId == pointId)
-            .OrderByDescending(h => h.TimestampUtc)
-            .Select(h => (DateTime?)h.TimestampUtc)
+            .OrderByDescending(h => h.TimestampLocal)
+            .Select(h => (DateTime?)h.TimestampLocal)
             .FirstOrDefaultAsync(ct);
 
-        if (last.HasValue && (nowUtc - last.Value).TotalMilliseconds < historyIntervalMs)
+        if (last.HasValue && (nowLocal - last.Value).TotalMilliseconds < historyIntervalMs)
             return;
 
         _db.ReadingHistories.Add(new ReadingHistory
         {
             DeviceConfigId = deviceId,
             PointConfigId = pointId,
-            TimestampUtc = nowUtc,
+            TimestampLocal = nowLocal,
             Quality = result.Quality,
             ValueNumeric = (result.Quality == ReadingQuality.Good) ? result.ValueNumeric : null,
             ErrorText = (result.Quality == ReadingQuality.Good) ? null : result.ErrorText

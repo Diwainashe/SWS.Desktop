@@ -35,6 +35,8 @@ public partial class App : Application
                 // EF: Factory is correct for desktop apps
                 services.AddDbContextFactory<SwsDbContext>(options =>
                     options.UseSqlServer(cs));
+                //Time Service
+                services.AddSingleton<SWS.Core.Abstractions.ITimeProvider, SWS.Core.Abstractions.SouthAfricaTimeProvider>();
 
                 // Modbus
                 services.AddSingleton<IModbusClient, NModbusClient>();
@@ -46,6 +48,7 @@ public partial class App : Application
 
                 // Background poller
                 services.AddHostedService<PollingHostedService>();
+                services.AddSingleton<ILatestReadingsBus, LatestReadingsBus>();
 
                 // Navigation + Shell
                 services.AddSingleton<INavigationService, AppNavigationService>();

@@ -1,12 +1,13 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using NModbus;
+using SWS.Core.Abstractions;
+using SWS.Core.Models;
+using SWS.Data;
+using System;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using NModbus;
-using SWS.Core.Models;
-using SWS.Data;
 
 namespace SWS.Acquisition
 {
@@ -22,10 +23,12 @@ namespace SWS.Acquisition
     public sealed class SmokeTestRunner
     {
         private readonly SwsDbContext _db;
+        private readonly ITimeProvider _time;
 
-        public SmokeTestRunner(SwsDbContext db)
+        public SmokeTestRunner(SwsDbContext db, ITimeProvider time)
         {
             _db = db;
+            _time = time;
         }
 
         /// <summary>
@@ -80,7 +83,7 @@ namespace SWS.Acquisition
                 (decimal? numeric, string text) = Decode(regs, point);
 
                 // 6) Upsert LatestReading
-                var now = DateTime.UtcNow;
+                var now = _time.NowLocal;
 
                 var existing = await _db.LatestReadings
                     .FirstOrDefaultAsync(r => r.DeviceConfigId == device.Id && r.PointConfigId == point.Id, ct);
@@ -95,11 +98,11 @@ namespace SWS.Acquisition
                     _db.LatestReadings.Add(existing);
                 }
 
-                existing.TimestampUtc = now;
+                existing.TimestampLocal = now;
                 existing.ValueNumeric = numeric;
                 existing.ErrorText = text;
                 existing.Quality = ReadingQuality.Good;
-                existing.UpdatedUtc = now;
+                existing.UpdatedLocal = now;
 
                 await _db.SaveChangesAsync(ct);
 
@@ -148,7 +151,7 @@ namespace SWS.Acquisition
 
         private async Task UpsertErrorAsync(int deviceId, int pointId, ReadingQuality q, string msg, CancellationToken ct)
         {
-            var now = DateTime.UtcNow;
+            var now = _time.NowLocal;
 
             var existing = await _db.LatestReadings
                 .FirstOrDefaultAsync(r => r.DeviceConfigId == deviceId && r.PointConfigId == pointId, ct);
@@ -163,11 +166,11 @@ namespace SWS.Acquisition
                 _db.LatestReadings.Add(existing);
             }
 
-            existing.TimestampUtc = now;
+            existing.TimestampLocal = now;
             existing.ValueNumeric = null;
             existing.ErrorText = null;
             existing.Quality = q;
-            existing.UpdatedUtc = now;
+            existing.UpdatedLocal = now;
 
             await _db.SaveChangesAsync(ct);
         }

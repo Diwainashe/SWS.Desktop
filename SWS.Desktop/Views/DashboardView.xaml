@@ -25,7 +25,7 @@
                 <DataGridTextColumn Header="Value" Binding="{Binding ValueNumeric}" Width="120"/>
                 <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="80"/>
                 <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="100"/>
-                <DataGridTextColumn Header="Timestamp (UTC)" Binding="{Binding TimestampUtc}" Width="180"/>
+                <DataGridTextColumn Header="Timestamp (Local)" Binding="{Binding TimestampLocal}" Width="180"/>
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

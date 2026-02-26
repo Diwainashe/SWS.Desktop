@@ -12,12 +12,20 @@ public partial class MainShellViewModel : ObservableObject
 {
     public INavigationService Navigation { get; }
 
+    [ObservableProperty]
+    private AppPageKey _currentPage = AppPageKey.Dashboard;
+
     public MainShellViewModel(INavigationService navigation)
     {
         Navigation = navigation;
 
-        // Optional: ensure the app lands on Dashboard when it starts
-        _ = Navigation.NavigateToAsync(AppPageKey.Dashboard);
+        // initial route
+        _ = Navigation.NavigateToAsync(CurrentPage);
+    }
+
+    partial void OnCurrentPageChanged(AppPageKey value)
+    {
+        _ = Navigation.NavigateToAsync(value);
     }
 
     [RelayCommand]
@@ -31,4 +39,7 @@ public partial class MainShellViewModel : ObservableObject
     [RelayCommand]
     private async Task GoPointsAsync()
         => await Navigation.NavigateToAsync(AppPageKey.Points);
+    [RelayCommand] 
+    private void GoSettings() 
+        => _ = Navigation.NavigateToAsync(AppPageKey.Settings);
 }

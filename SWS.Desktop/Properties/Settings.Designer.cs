@@ -35,5 +35,41 @@ namespace SWS.Desktop.Properties {
                 this["SwsConnectionString"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Dark")]
+        public string AppTheme {
+            get {
+                return ((string)(this["AppTheme"]));
+            }
+            set {
+                this["AppTheme"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string EngineeringLogoPath {
+            get {
+                return ((string)(this["EngineeringLogoPath"]));
+            }
+            set {
+                this["EngineeringLogoPath"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ClientLogoPath {
+            get {
+                return ((string)(this["ClientLogoPath"]));
+            }
+            set {
+                this["ClientLogoPath"] = value;
+            }
+        }
     }
 }

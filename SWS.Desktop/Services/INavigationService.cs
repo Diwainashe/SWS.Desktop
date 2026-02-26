@@ -10,5 +10,6 @@ public enum AppPageKey
 {
     Dashboard,
     Devices,
-    Points
+    Points,
+    Settings
 }

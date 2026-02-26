@@ -5,5 +5,14 @@
     <Setting Name="SwsConnectionString" Type="System.String" Scope="User">
       <Value Profile="(Default)">Server=(localdb)\MSSQLLocalDB;Database=SWS;Trusted_Connection=True;TrustServerCertificate=True;</Value>
     </Setting>
+    <Setting Name="AppTheme" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Dark</Value>
+    </Setting>
+    <Setting Name="EngineeringLogoPath" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="ClientLogoPath" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
   </Settings>
 </SettingsFile>

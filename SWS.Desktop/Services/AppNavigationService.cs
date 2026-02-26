@@ -26,6 +26,7 @@ public sealed partial class AppNavigationService : ObservableObject, INavigation
         { AppPageKey.Dashboard, typeof(Views.DashboardView) },
         { AppPageKey.Devices,   typeof(Views.DevicesView) },
         { AppPageKey.Points,    typeof(Views.PointsView) },
+        { AppPageKey.Settings,    typeof(Views.SettingsView) },
         // Add later when you have it:
         // { AppPageKey.Config, typeof(Views.ConfigView) }
     };

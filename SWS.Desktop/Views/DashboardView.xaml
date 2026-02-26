@@ -10,23 +10,26 @@
 
         <StackPanel Orientation="Horizontal">
             <TextBlock Text="Live Readings" FontSize="18" FontWeight="SemiBold"/>
-            <Button Content="Refresh" Margin="12,0,0,0" Padding="10,4" Command="{Binding RefreshCommand}"/>
+            <Button Content="Refresh" Padding="10,4" Command="{Binding RefreshCommand}" Margin="0,0,8,0"/>
+            <Button Content="Auto" Padding="10,4" Command="{Binding ToggleAutoRefreshCommand}" Margin="0,0,8,0"/>
+            <TextBlock Text="{Binding Status}" VerticalAlignment="Center" Opacity="0.8"/>
         </StackPanel>
 
-        <DataGrid Grid.Row="1"
-                  Margin="0,12,0,0"
-                  ItemsSource="{Binding Rows}"
-                  AutoGenerateColumns="False"
-                  IsReadOnly="True">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="160"/>
-                <DataGridTextColumn Header="Label" Binding="{Binding Label}" Width="160"/>
-                <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="220"/>
-                <DataGridTextColumn Header="Value" Binding="{Binding ValueNumeric}" Width="120"/>
-                <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="80"/>
-                <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="100"/>
-                <DataGridTextColumn Header="Timestamp (Local)" Binding="{Binding TimestampLocal}" Width="180"/>
-            </DataGrid.Columns>
-        </DataGrid>
+        <Border Style="{StaticResource CardBorder}" Padding="0">
+            <DataGrid Margin="0"
+              ItemsSource="{Binding Rows}"
+              AutoGenerateColumns="False"
+              IsReadOnly="True">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="160"/>
+                    <DataGridTextColumn Header="Label" Binding="{Binding Label}" Width="160"/>
+                    <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="220"/>
+                    <DataGridTextColumn Header="Value" Binding="{Binding ValueNumeric}" Width="120"/>
+                    <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="80"/>
+                    <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="100"/>
+                    <DataGridTextColumn Header="Timestamp (Local)" Binding="{Binding TimestampLocal}" Width="180"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
     </Grid>
 </UserControl>

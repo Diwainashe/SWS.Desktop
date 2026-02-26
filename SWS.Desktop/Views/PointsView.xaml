@@ -46,40 +46,40 @@
                 <TextBlock Text="Edit / Add" FontSize="18" FontWeight="SemiBold"/>
 
                 <TextBlock Text="Key" Margin="0,10,0,0"/>
-                <TextBox Text="{Binding EditKey}" Height="28"/>
+                <TextBox Text="{Binding EditKey}" Height="35"/>
 
                 <TextBlock Text="Label" Margin="0,10,0,0"/>
-                <TextBox Text="{Binding EditLabel}" Height="28"/>
+                <TextBox Text="{Binding EditLabel}" Height="35"/>
 
                 <TextBlock Text="Unit" Margin="0,10,0,0"/>
-                <TextBox Text="{Binding EditUnit}" Height="28"/>
+                <TextBox Text="{Binding EditUnit}" Height="35"/>
 
                 <TextBlock Text="Area" Margin="0,10,0,0"/>
-                <ComboBox SelectedItem="{Binding EditArea}" Height="28"
+                <ComboBox SelectedItem="{Binding EditArea}" Height="35"
                           ItemsSource="{Binding Areas}"/>
 
                 
                 <TextBlock Text="Address (manual style, &lt;=0 = not configured)" Margin="0,10,0,0"/>
-                <TextBox Text="{Binding EditAddress}" Height="28"/>
+                <TextBox Text="{Binding EditAddress}" Height="35"/>
 
                 <TextBlock Text="Length" Margin="0,10,0,0"/>
-                <TextBox Text="{Binding EditLength}" Height="28"/>
+                <TextBox Text="{Binding EditLength}" Height="35"/>
 
                 <TextBlock Text="DataType" Margin="0,10,0,0"/>
-                <ComboBox SelectedItem="{Binding EditDataType}" Height="28"
+                <ComboBox SelectedItem="{Binding EditDataType}" Height="35"
                           ItemsSource="{Binding DataTypes}"/>
 
                 <TextBlock Text="Scale" Margin="0,10,0,0"/>
-                <TextBox Text="{Binding EditScale}" Height="28"/>
+                <TextBox Text="{Binding EditScale}" Height="35"/>
 
                 <TextBlock Text="PollRateMs" Margin="0,10,0,0"/>
-                <TextBox Text="{Binding EditPollRateMs}" Height="28"/>
+                <TextBox Text="{Binding EditPollRateMs}" Height="35"/>
 
                 <CheckBox Content="Essential (tile)" Margin="0,10,0,0" IsChecked="{Binding EditEssential}"/>
                 <CheckBox Content="Log to History" Margin="0,6,0,0" IsChecked="{Binding EditLogToHistory}"/>
 
                 <TextBlock Text="HistoryIntervalMs" Margin="0,10,0,0"/>
-                <TextBox Text="{Binding EditHistoryIntervalMs}" Height="28"/>
+                <TextBox Text="{Binding EditHistoryIntervalMs}" Height="35"/>
 
                 <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                     <Button Content="New" Width="90" Margin="0,0,8,0" Command="{Binding NewCommand}"/>

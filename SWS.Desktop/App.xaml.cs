@@ -35,6 +35,9 @@ public partial class App : Application
                 // EF: Factory is correct for desktop apps
                 services.AddDbContextFactory<SwsDbContext>(options =>
                     options.UseSqlServer(cs));
+                //Config
+                services.AddSingleton<AppSettingsService>();
+                services.AddSingleton<AppThemeService>();
                 //Time Service
                 services.AddSingleton<SWS.Core.Abstractions.ITimeProvider, SWS.Core.Abstractions.SouthAfricaTimeProvider>();
 
@@ -61,16 +64,22 @@ public partial class App : Application
                 services.AddTransient<DashboardPageViewModel>();
                 services.AddTransient<DevicesViewModel>();
                 services.AddTransient<PointsViewModel>();
+                services.AddTransient<SettingsViewModel>();
 
                 services.AddTransient<DashboardView>();
                 services.AddTransient<DevicesView>();
                 services.AddTransient<PointsView>();
+                services.AddTransient<SettingsView>();
 
                 // Add later when you create it:
                 // services.AddTransient<ConfigViewModel>();
                 // services.AddTransient<ConfigView>();
             })
             .Build();
+
+        var settings = _host.Services.GetRequiredService<AppSettingsService>();
+        var themeSvc = _host.Services.GetRequiredService<AppThemeService>();
+        themeSvc.ApplyTheme(settings.Theme);
 
         await _host.StartAsync(); // ✅ starts BackgroundService
 

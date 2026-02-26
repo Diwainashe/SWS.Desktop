@@ -1,0 +1,57 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ========= DARK THEME BRUSHES ========= -->
+
+    <!-- Window + page -->
+    <SolidColorBrush x:Key="App.BackgroundBrush" Color="#0B1220"/>
+    <SolidColorBrush x:Key="App.SurfaceBrush" Color="#0F1A2C"/>
+    <SolidColorBrush x:Key="App.Surface2Brush" Color="#0C1626"/>
+
+    <!-- Top bar -->
+    <SolidColorBrush x:Key="App.TopBarBrush" Color="#0A1424"/>
+    <SolidColorBrush x:Key="App.TopBarBorderBrush" Color="#22324A"/>
+
+    <!-- Text -->
+    <SolidColorBrush x:Key="App.TextBrush" Color="#EAF2FF"/>
+    <SolidColorBrush x:Key="App.MutedTextBrush" Color="#A9B7CF"/>
+
+    <!-- Borders -->
+    <SolidColorBrush x:Key="App.BorderBrush" Color="#2A3A55"/>
+
+    <!-- Inputs -->
+    <SolidColorBrush x:Key="App.InputBackgroundBrush" Color="#0E1A2D"/>
+    <SolidColorBrush x:Key="App.InputBorderBrush" Color="#2A3A55"/>
+    <SolidColorBrush x:Key="App.InputFocusBorderBrush" Color="#4E76FF"/>
+    <SolidColorBrush x:Key="App.InputDisabledBrush" Color="#0A1322"/>
+
+    <!-- Buttons -->
+    <SolidColorBrush x:Key="App.ButtonBackgroundBrush" Color="#152642"/>
+    <SolidColorBrush x:Key="App.ButtonBorderBrush" Color="#2A3A55"/>
+    <SolidColorBrush x:Key="App.ButtonHoverBrush" Color="#1B3156"/>
+    <SolidColorBrush x:Key="App.ButtonPressedBrush" Color="#10213A"/>
+    <SolidColorBrush x:Key="App.ButtonTextBrush" Color="#EAF2FF"/>
+
+    <!-- Primary action -->
+    <SolidColorBrush x:Key="App.PrimaryBrush" Color="#4E76FF"/>
+    <SolidColorBrush x:Key="App.PrimaryHoverBrush" Color="#3F67F5"/>
+    <SolidColorBrush x:Key="App.PrimaryTextBrush" Color="#FFFFFF"/>
+
+    <!-- Nav buttons (top pills) -->
+    <SolidColorBrush x:Key="App.NavIdleBrush" Color="#12213A"/>
+    <SolidColorBrush x:Key="App.NavHoverBrush" Color="#1A2F53"/>
+    <SolidColorBrush x:Key="App.NavActiveBrush" Color="#4E76FF"/>
+    <SolidColorBrush x:Key="App.NavTextBrush" Color="#EAF2FF"/>
+    <SolidColorBrush x:Key="App.NavActiveTextBrush" Color="#FFFFFF"/>
+
+    <!-- DataGrid -->
+    <SolidColorBrush x:Key="App.GridHeaderBrush" Color="#0F1A2C"/>
+    <SolidColorBrush x:Key="App.GridRowBrush" Color="#0E192B"/>
+    <SolidColorBrush x:Key="App.GridAltRowBrush" Color="#0C1626"/>
+    <SolidColorBrush x:Key="App.GridLinesBrush" Color="#22324A"/>
+
+    <!-- Logo frames -->
+    <SolidColorBrush x:Key="App.LogoFrameBrush" Color="#0E1A2D"/>
+    <SolidColorBrush x:Key="App.LogoFrameBorderBrush" Color="#2A3A55"/>
+
+</ResourceDictionary>

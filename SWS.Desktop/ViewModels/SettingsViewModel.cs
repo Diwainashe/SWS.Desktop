@@ -4,6 +4,9 @@ using SWS.Desktop.Services;
 using System;
 using Microsoft.Win32;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace SWS.Desktop.ViewModels;
 
@@ -21,7 +24,28 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _clientLogoPath = string.Empty;
     [ObservableProperty] private string _connectionString = string.Empty;
     [ObservableProperty] private string _status = "Ready";
+    [ObservableProperty] private ImageSource? _engineeringLogoPreview;
+    [ObservableProperty] private ImageSource? _clientLogoPreview;
 
+    private static ImageSource? LoadPreview(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return null;
+
+        var bmp = new BitmapImage();
+        bmp.BeginInit();
+        bmp.CacheOption = BitmapCacheOption.OnLoad;
+        bmp.UriSource = new Uri(path, UriKind.Absolute);
+        bmp.EndInit();
+        bmp.Freeze();
+        return bmp;
+    }
+
+    private void RefreshPreviews()
+    {
+        EngineeringLogoPreview = LoadPreview(EngineeringLogoPath);
+        ClientLogoPreview = LoadPreview(ClientLogoPath);
+    }
     public SettingsViewModel(AppSettingsService settings, AppThemeService theme)
     {
         _settings = settings;
@@ -44,6 +68,19 @@ public partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private void Save()
     {
+        // Validate logo paths
+        if (!string.IsNullOrWhiteSpace(EngineeringLogoPath) && !File.Exists(EngineeringLogoPath))
+        {
+            Status = "Engineering logo path is invalid (file not found).";
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(ClientLogoPath) && !File.Exists(ClientLogoPath))
+        {
+            Status = "Client logo path is invalid (file not found).";
+            return;
+        }
+
         _settings.Theme = SelectedTheme;
         _settings.EngineeringLogoPath = EngineeringLogoPath;
         _settings.ClientLogoPath = ClientLogoPath;
@@ -65,6 +102,11 @@ public partial class SettingsViewModel : ObservableObject
         if (dialog.ShowDialog() == true)
         {
             EngineeringLogoPath = dialog.FileName;
+            RefreshPreviews();
+
+            // Auto-apply immediately (no restart)
+            _settings.EngineeringLogoPath = EngineeringLogoPath;
+
             Status = "Engineering logo selected.";
         }
     }
@@ -82,6 +124,11 @@ public partial class SettingsViewModel : ObservableObject
         if (dialog.ShowDialog() == true)
         {
             ClientLogoPath = dialog.FileName;
+            RefreshPreviews();
+
+            // Auto-apply immediately (no restart)
+            _settings.ClientLogoPath = ClientLogoPath;
+
             Status = "Client logo selected.";
         }
     }

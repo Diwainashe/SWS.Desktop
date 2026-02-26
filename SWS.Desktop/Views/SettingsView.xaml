@@ -18,10 +18,30 @@
 
             <TextBlock Text="Engineering Logo Path (left)" Margin="0,14,0,0" Opacity="0.8"/>
             <TextBox Height="35" Text="{Binding EngineeringLogoPath}"/>
+            <Border Margin="0,8,0,0"
+                    Width="140" Height="70"
+                    Background="{DynamicResource App.LogoFrameBrush}"
+                    BorderBrush="{DynamicResource App.LogoFrameBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10">
+                            <Image Source="{Binding EngineeringLogoPreview}"
+                       Stretch="Uniform"
+                       Margin="8"/>
+            </Border>
             <Button Content="Browse…" Width="120" Margin="0,8,0,0" Command="{Binding BrowseEngineeringLogoCommand}"/>
 
             <TextBlock Text="Client Logo Path (right)" Margin="0,14,0,0" Opacity="0.8"/>
             <TextBox Height="35" Text="{Binding ClientLogoPath}"/>
+            <Border Margin="0,8,0,0"
+                    Width="140" Height="70"
+                    Background="{DynamicResource App.LogoFrameBrush}"
+                    BorderBrush="{DynamicResource App.LogoFrameBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10">
+                            <Image Source="{Binding ClientLogoPreview}"
+                       Stretch="Uniform"
+                       Margin="8"/>
+            </Border>
             <Button Content="Browse…" Width="120" Margin="0,8,0,0" Command="{Binding BrowseClientLogoCommand}"/>
 
             <TextBlock Text="Connection String" Margin="0,14,0,0" Opacity="0.8"/>

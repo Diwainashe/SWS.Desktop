@@ -21,20 +21,23 @@ namespace SWS.Acquisition;
 /// </summary>
 public sealed class DevicePollerService
 {
+
     private readonly SwsDbContext _db;
     private readonly IModbusClient _modbus;
     private readonly ILatestReadingsBus _latestBus;
     private readonly ITimeProvider _time;
+    private readonly IDecoder _decoder;
 
     // Per point (DeviceId:PointId) next allowed poll timestamp
     private static readonly ConcurrentDictionary<string, DateTime> _nextPollUtc = new();
 
-    public DevicePollerService(SwsDbContext db, IModbusClient modbus, ILatestReadingsBus latestBus, ITimeProvider time)
+    public DevicePollerService(SwsDbContext db, IModbusClient modbus, ILatestReadingsBus latestBus, ITimeProvider time, IDecoder decoder)
     {
         _db = db;
         _modbus = modbus;
         _latestBus = latestBus;
         _time = time;
+        _decoder = decoder;
     }
 
     /// <summary>
@@ -117,7 +120,7 @@ public sealed class DevicePollerService
                 case ModbusPointArea.HoldingRegister:
                     {
                         ushort[] regs = await _modbus.ReadHoldingRegistersAsync(device, point.Address, point.Length, ct);
-                        var numeric = ModbusDecoder.DecodeToNumeric(regs, point);
+                        var numeric = _decoder.DecodeNumeric(point, regs);
                         if (numeric is null)
                             return ReadResult.Error(ReadingQuality.BadData, "Decode returned null.");
                         return ReadResult.Ok(numeric.Value);

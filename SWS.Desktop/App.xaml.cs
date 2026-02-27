@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SWS.Acquisition;
 using SWS.Core.Abstractions;
+using SWS.Core.Profiles;
 using SWS.Data;
 using SWS.Desktop.Services;
 using SWS.Desktop.ViewModels;
@@ -43,6 +44,7 @@ public partial class App : Application
 
                 // Modbus
                 services.AddSingleton<IModbusClient, NModbusClient>();
+                services.AddSingleton<IDecoder, BasicDecoder>();
 
                 // Acquisition + data services (scoped is fine; navigation will create scopes)
                 services.AddScoped<DevicePollerService>();
@@ -52,6 +54,12 @@ public partial class App : Application
                 // Background poller
                 services.AddHostedService<PollingHostedService>();
                 services.AddSingleton<ILatestReadingsBus, LatestReadingsBus>();
+
+                // Profiles (device-specific templates + formatting)
+                // register individual profiles
+                services.AddSingleton<IDeviceProfile, GenericProfile>();
+                services.AddSingleton<IDeviceProfile, Gm9907L5Profile>();
+                services.AddSingleton<DeviceProfileRegistry>();
 
                 // Navigation + Shell
                 services.AddSingleton<INavigationService, AppNavigationService>();

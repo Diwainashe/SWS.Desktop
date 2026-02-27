@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SWS.Core.Models;
 using SWS.Data;
+using System.ComponentModel.DataAnnotations;
 
 namespace SWS.Desktop.Services;
 
@@ -51,6 +52,34 @@ public sealed class ConfigDataService
     }
 
     // ---------------- Points ----------------
+
+    public async Task<int> AddDefaultPointsForDeviceAsync(
+    int deviceId,
+    IReadOnlyList<SWS.Core.Models.PointConfig> points,
+    CancellationToken ct)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+        // Avoid duplicates by Key (per device)
+        var existingKeys = await db.PointConfigs
+            .Where(p => p.DeviceConfigId == deviceId)
+            .Select(p => p.Key)
+            .ToListAsync(ct);
+
+        int added = 0;
+
+        foreach (var p in points)
+        {
+            if (existingKeys.Contains(p.Key))
+                continue;
+
+            db.PointConfigs.Add(p);
+            added++;
+        }
+
+        await db.SaveChangesAsync(ct);
+        return added;
+    }
 
     public async Task<List<PointConfig>> GetPointsForDeviceAsync(int deviceId, CancellationToken ct)
     {
@@ -105,6 +134,7 @@ public sealed class ConfigDataService
                 Key = p.Key,
                 Label = p.Label,
                 Unit = p.Unit,
+                DataType = p.DataType,
                 ValueNumeric = r.ValueNumeric,
                 Quality = r.Quality,
                 TimestampLocal = r.TimestampLocal
@@ -121,7 +151,26 @@ public sealed class LatestReadingRow
     public string Key { get; set; } = "";
     public string Label { get; set; } = "";
     public string Unit { get; set; } = "";
+    public PointDataType DataType { get; set; }   
     public decimal? ValueNumeric { get; set; }
     public SWS.Core.Models.ReadingQuality Quality { get; set; }
     public DateTime TimestampLocal { get; set; }
+    public string DisplayValue
+    {
+        get
+        {
+            if (Quality != SWS.Core.Models.ReadingQuality.Good)
+                return "—";
+
+            if (ValueNumeric == null)
+                return "";
+
+            // IMPORTANT: Only treat as boolean if it is actually a Bool point
+            if (DataType == PointDataType.Bool)
+                return ValueNumeric == 0m ? "OFF" : "ON";
+
+            // Otherwise show numeric normally
+            return ValueNumeric.Value.ToString("0.###");
+        }
+    }
 }

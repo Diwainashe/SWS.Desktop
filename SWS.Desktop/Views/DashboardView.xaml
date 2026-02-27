@@ -24,8 +24,7 @@
                     <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="160"/>
                     <DataGridTextColumn Header="Label" Binding="{Binding Label}" Width="160"/>
                     <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="220"/>
-                    <DataGridTextColumn Header="Value" Binding="{Binding ValueNumeric}" Width="120"/>
-                    <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="80"/>
+                    <DataGridTextColumn Header="Value" Binding="{Binding DisplayValue}" Width="140"/>
                     <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="100"/>
                     <DataGridTextColumn Header="Timestamp (Local)" Binding="{Binding TimestampLocal}" Width="180"/>
                 </DataGrid.Columns>

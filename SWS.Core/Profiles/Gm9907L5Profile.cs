@@ -9,132 +9,111 @@ public sealed class Gm9907L5Profile : IDeviceProfile
 {
     public DeviceType DeviceType => DeviceType.GM9907_L5;
 
-    // Alarm Info 1 (40004) bit meanings (from your spreadsheet)
-    private static readonly IReadOnlyDictionary<int, string> AlarmInfo1Bits = new Dictionary<int, string>
-    {
-        [0] = "Emergency Stop",
-        [1] = "Overload Alarm",
-        [2] = "Motor Alarm",
-        [3] = "Loadcell Signal Unstable",
-        [4] = "Loadcell Over Range",
-        [5] = "Loadcell Under Range",
-        [6] = "Loadcell Error",
-        [7] = "Overweight",
-        [8] = "Underweight",
-        [9] = "Over Tolerance",
-        [10] = "Under Tolerance",
-        [11] = "Feeding Gate Open Overtime",
-        [12] = "Feeding Gate Not Closed",
-        [13] = "Feeding Gate Close Overtime",
-        [14] = "Discharge Gate Open Overtime",
-        [15] = "Discharge Gate Close Overtime",
-    };
+    // Alarm.Info1 (40004) bit meanings (from your spreadsheet)
+    private static readonly IReadOnlyDictionary<int, string> AlarmInfo1Bits =
+        new Dictionary<int, string>
+        {
+            { 0,  "Delivery Done Alarm" },
+            { 1,  "Fail, Zero Over Range" },
+            { 2,  "Fail, Weight Unstable" },
+            { 3,  "Fail, Process Running" },
+            { 4,  "Target Is 0, Unable To Start" },
+            { 5,  "Over/Under Alarm" },
+            { 6,  "Weight OFL, Unable To Start" },
+            { 7,  "Continuous Flowrate Low" },
+            { 8,  "Stable Judge Overtime scale unstable" },
+            { 9,  "Target Error, Unable To Start" },
+            { 10, "Clear ACUM Before Next Run" },
+            { 11, "Discharge Gate Not Closed" },
+            { 12, "Feeding Gate Not Closed" },
+            { 13, "Feeding Gate Close Overtime" },
+            { 14, "Discharge Gate Open Overtime" },
+            { 15, "Discharge Gate Close Overtime" },
+        };
 
-    // Alarm Info 2 (40005) bit meanings (from your spreadsheet)
-    private static readonly IReadOnlyDictionary<int, string> AlarmInfo2Bits = new Dictionary<int, string>
-    {
-        [0] = "Motor Parameter Error",
-        [1] = "Calibration Fail, Unstable",
-        [2] = "Calibration Fail, Loadcell Input High",
-        [3] = "Calibration Fail, Loadcell Input Low",
-        [4] = "Calibration Fail, Unstable",
-        [5] = "Calibration Fail, Weight Over",
-        [6] = "Calibration Fail, Weight Under",
-        [7] = "Calibration Fail, Weight Value Error",
-        [8] = "Calibration Fail, Over Resolution",
-        [9] = "Calibration Fail, No Gain Voltage Record",
-        [10] = "Over&Under Pause",
-        [11] = "Fill Timeout",
-        [12] = "Disc Timeout",
-        // 13..15 reserved
-    };
+    // Alarm.Info2 (40005) bit meanings (from your spreadsheet)
+    private static readonly IReadOnlyDictionary<int, string> AlarmInfo2Bits =
+        new Dictionary<int, string>
+        {
+            { 0,  "Motor Parameter Error" },
+            { 1,  "Calibration Fail, Unstable" },
+            { 2,  "Calibration Fail, Loadcell Input High (None Weight zero voltage input > 15625)" },
+            { 3,  "Calibration Fail, Loadcell Input Low (None Weight zero voltage input < 2)" },
+            { 4,  "Calibration Fail, Unstable" },
+            { 5,  "Calibration Fail, Weight Over (None Weight gain voltage input > 15625)" },
+            { 6,  "Calibration Fail, Weight Under (relative voltage negative)" },
+            { 7,  "Calibration Fail, Weight Value Error (write value is 0 or > Capacity)" },
+            { 8,  "Calibration Fail, Over Resolution (too high calibration resolution)" },
+            { 9,  "Calibration Fail, No Gain Voltage Record" },
+            { 10, "Over&Under Pause" },
+            { 11, "Fill Timeout" },
+            { 12, "Disc Timeout" },
+            { 13, "Reserved" },
+        };
 
     public string FormatDisplay(
         string key,
         decimal? value,
         IReadOnlyList<LatestReadingSnapshot> allReadings)
     {
-        // bad/empty
-        if (value is null)
+        // If missing/bad -> dash
+        if (value == null)
             return "—";
 
-        // ✅ Strict rule: ONLY show ON/OFF if THIS point is Bool
+        // Find this point's datatype so ON/OFF is purely datatype-driven
         var thisPoint = allReadings.FirstOrDefault(x => x.Key == key);
         var dataType = thisPoint?.DataType ?? PointDataType.UInt16;
+
+        // ✅ Only show ON/OFF if the point itself is Bool
         if (dataType == PointDataType.Bool)
             return value.Value == 0m ? "OFF" : "ON";
 
-        // Alarm decoding (bitfields)
+        // ---- Device-specific special formatting ----
+
+        // Weight + Flowrate: decimals + unit code come from helper registers
+        if (key == "Flowrate.Actual")
+        {
+            int decimals = GetInt(allReadings, "Flowrate.Decimal");
+            int unitCode = GetInt(allReadings, "Flowrate.Unit");
+
+            string unit = unitCode switch
+            {
+                0 => "g/h",
+                1 => "kg/h",
+                2 => "t/h",
+                3 => "lb/h",
+                _ => ""
+            };
+
+            return FormatDecimal(value.Value, decimals, unit);
+        }
+
+        if (key == "Weight.Display")
+        {
+            int decimals = GetInt(allReadings, "Weight.Decimal");
+            int unitCode = GetInt(allReadings, "Weight.Unit");
+
+            string unit = unitCode switch
+            {
+                0 => "g",
+                1 => "kg",
+                2 => "t",
+                3 => "lb",
+                _ => ""
+            };
+
+            return FormatDecimal(value.Value, decimals, unit);
+        }
+
+        // Alarm bitfields: show active alarm list
         if (key == "Alarm.Info1")
-            return DecodeAlarmBits((ushort)value.Value, AlarmInfo1Bits);
+            return FormatAlarmBits(value.Value, AlarmInfo1Bits);
 
         if (key == "Alarm.Info2")
-            return DecodeAlarmBits((ushort)value.Value, AlarmInfo2Bits);
+            return FormatAlarmBits(value.Value, AlarmInfo2Bits);
 
-        // Device-specific numeric formatting
-        switch (key)
-        {
-            case "Flowrate.Actual":
-                {
-                    int decimals = GetInt(allReadings, "Flowrate.Decimal");
-                    int unitCode = GetInt(allReadings, "Flowrate.Unit");
-
-                    string unit = unitCode switch
-                    {
-                        0 => "g/h",
-                        1 => "kg/h",
-                        2 => "t/h",
-                        3 => "lb/h",
-                        _ => ""
-                    };
-
-                    return FormatDecimal(value.Value, decimals, unit);
-                }
-
-            case "Weight.Display":
-                {
-                    int decimals = GetInt(allReadings, "Weight.Decimal");
-                    int unitCode = GetInt(allReadings, "Weight.Unit");
-
-                    string unit = unitCode switch
-                    {
-                        0 => "g",
-                        1 => "kg",
-                        2 => "t",
-                        3 => "lb",
-                        _ => ""
-                    };
-
-                    return FormatDecimal(value.Value, decimals, unit);
-                }
-
-            default:
-                return value.Value.ToString("0.###");
-        }
-    }
-
-    private static string DecodeAlarmBits(ushort raw, IReadOnlyDictionary<int, string> map)
-    {
-        // No alarms set
-        if (raw == 0)
-            return "OK";
-
-        var active = new List<string>();
-
-        for (int bit = 0; bit < 16; bit++)
-        {
-            bool isSet = (raw & (1 << bit)) != 0;
-            if (!isSet)
-                continue;
-
-            // If bit is reserved/unknown, still show something useful
-            if (map.TryGetValue(bit, out var label))
-                active.Add(label);
-            else
-                active.Add($"Bit {bit}");
-        }
-
-        return string.Join("; ", active);
+        // Default numeric formatting
+        return value.Value.ToString("0.###");
     }
 
     private static string FormatDecimal(decimal value, int decimals, string unit)
@@ -153,5 +132,33 @@ public sealed class Gm9907L5Profile : IDeviceProfile
             return 0;
 
         return (int)item.ValueNumeric.Value;
+    }
+
+    /// <summary>
+    /// Decodes a UInt16 bitfield into "OK" or "Active: A, B, C"
+    /// </summary>
+    private static string FormatAlarmBits(decimal value, IReadOnlyDictionary<int, string> map)
+    {
+        // Alarm registers are UInt16 in templates, but stored as decimal.
+        // Clamp safely.
+        int bits = (int)Math.Clamp(value, 0m, 65535m);
+
+        if (bits == 0)
+            return "OK";
+
+        var active = new List<string>();
+
+        foreach (var kv in map.OrderBy(k => k.Key))
+        {
+            int bit = kv.Key;
+            bool isSet = (bits & (1 << bit)) != 0;
+
+            if (isSet)
+                active.Add(kv.Value);
+        }
+
+        return active.Count == 0
+            ? $"Active: (unknown bits) [{bits}]"
+            : "Active: " + string.Join(", ", active);
     }
 }

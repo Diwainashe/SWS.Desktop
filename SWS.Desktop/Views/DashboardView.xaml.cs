@@ -5,7 +5,7 @@ namespace SWS.Desktop.Views;
 
 public partial class DashboardView : UserControl
 {
-    public DashboardView(DashboardPageViewModel vm)
+    public DashboardView(DashboardViewModel vm)
     {
         InitializeComponent();
         DataContext = vm;

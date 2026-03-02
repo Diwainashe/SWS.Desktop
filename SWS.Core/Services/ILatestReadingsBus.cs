@@ -1,30 +1,11 @@
-﻿using System;
-
-namespace SWS.Desktop.Services;
+﻿namespace SWS.Core.Services;
 
 /// <summary>
-/// Simple in-process event bus: poller publishes latest changes,
-/// UI subscribes and updates immediately.
+/// Cross-layer signal: Acquisition publishes “latest readings changed”.
+/// UI can listen and refresh.
+/// Keep interface in Core so Acquisition can depend on it.
 /// </summary>
 public interface ILatestReadingsBus
 {
-    event EventHandler<LatestReadingsUpdatedEventArgs>? Updated;
-
-    void Publish(LatestReadingsUpdatedEventArgs args);
-}
-
-/// <summary>
-/// Payload sent from the poller to the UI.
-/// Keep it small and UI-friendly.
-/// </summary>
-public sealed class LatestReadingsUpdatedEventArgs : EventArgs
-{
-    public LatestReadingsUpdatedEventArgs(int deviceId, DateTime timestampUtc)
-    {
-        DeviceId = deviceId;
-        TimestampUtc = timestampUtc;
-    }
-
-    public int DeviceId { get; }
-    public DateTime TimestampUtc { get; }
+    void Publish(int deviceId, DateTime timestampLocal);
 }

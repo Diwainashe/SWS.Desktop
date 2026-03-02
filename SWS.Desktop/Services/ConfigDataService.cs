@@ -117,7 +117,7 @@ public sealed class ConfigDataService
 
     // ---------------- Live readings (dashboard) ----------------
 
-    public async Task<List<LatestReadingRow>> GetLatestReadingsAsync(CancellationToken ct)
+    public async Task<List<LatestReadingSnapshot>> GetLatestReadingsAsync(CancellationToken ct)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
@@ -126,51 +126,97 @@ public sealed class ConfigDataService
             join d in db.DeviceConfigs.AsNoTracking() on r.DeviceConfigId equals d.Id
             join p in db.PointConfigs.AsNoTracking() on r.PointConfigId equals p.Id
             orderby d.Name, p.Key
-            select new LatestReadingRow
+            select new LatestReadingSnapshot
             {
                 DeviceId = d.Id,
                 DeviceName = d.Name,
+                DeviceType = d.DeviceType,
+
                 PointId = p.Id,
                 Key = p.Key,
                 Label = p.Label,
                 Unit = p.Unit,
-                DataType = p.DataType,
+                DataType = p.DataType,                // ✅ THIS fixes the ON/OFF confusion
+
                 ValueNumeric = r.ValueNumeric,
                 Quality = r.Quality,
                 TimestampLocal = r.TimestampLocal
             }
         ).ToListAsync(ct);
     }
-}
 
-public sealed class LatestReadingRow
-{
-    public int DeviceId { get; set; }
-    public string DeviceName { get; set; } = "";
-    public int PointId { get; set; }
-    public string Key { get; set; } = "";
-    public string Label { get; set; } = "";
-    public string Unit { get; set; } = "";
-    public PointDataType DataType { get; set; }   
-    public decimal? ValueNumeric { get; set; }
-    public SWS.Core.Models.ReadingQuality Quality { get; set; }
-    public DateTime TimestampLocal { get; set; }
-    public string DisplayValue
+    // ---------------- Templates ----------------
+
+    public async Task<List<PointTemplate>> GetTemplatesForDeviceTypeAsync(DeviceType type, CancellationToken ct)
     {
-        get
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+        string typeName = type.ToString();
+
+        return await db.PointTemplates.AsNoTracking()
+            .Where(t => t.DeviceType == typeName)
+            .OrderBy(t => t.Key)
+            .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// Copies templates -> PointConfigs for a device, skipping duplicate Keys.
+    /// Returns number of points added.
+    /// </summary>
+    public async Task<int> AddDefaultPointsFromTemplatesAsync(
+     int deviceId,
+     DeviceType deviceType,
+     CancellationToken ct)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+        string typeKey = deviceType.ToString(); // e.g. "GM9907_L5"
+
+        // Templates for that device type
+        var templates = await db.PointTemplates
+            .AsNoTracking()
+            .Where(t => t.DeviceType == typeKey)
+            .OrderBy(t => t.Key)
+            .ToListAsync(ct);
+
+        if (templates.Count == 0)
+            return 0;
+
+        // Avoid duplicates (per device) by Key
+        var existingKeys = await db.PointConfigs
+            .Where(p => p.DeviceConfigId == deviceId)
+            .Select(p => p.Key)
+            .ToListAsync(ct);
+
+        int added = 0;
+
+        foreach (var t in templates)
         {
-            if (Quality != SWS.Core.Models.ReadingQuality.Good)
-                return "—";
+            if (existingKeys.Contains(t.Key))
+                continue;
 
-            if (ValueNumeric == null)
-                return "";
+            db.PointConfigs.Add(new PointConfig
+            {
+                DeviceConfigId = deviceId,
+                Key = t.Key,
+                Label = t.Label,
+                Unit = t.Unit,
+                Area = t.Area,
+                Address = t.Address,
+                Length = t.DefaultLength,
+                DataType = t.DataType,
+                Scale = t.Scale,
+                PollRateMs = t.PollRateMs,
+                IsEssential = t.IsEssential,
+                LogToHistory = t.LogToHistory,
+                HistoryIntervalMs = t.HistoryIntervalMs
+            });
 
-            // IMPORTANT: Only treat as boolean if it is actually a Bool point
-            if (DataType == PointDataType.Bool)
-                return ValueNumeric == 0m ? "OFF" : "ON";
-
-            // Otherwise show numeric normally
-            return ValueNumeric.Value.ToString("0.###");
+            added++;
         }
+
+        await db.SaveChangesAsync(ct);
+        return added;
     }
 }
+

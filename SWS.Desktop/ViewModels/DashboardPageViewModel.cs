@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using SWS.Desktop.Services;
 using System.Collections.ObjectModel;
 using System.Windows.Threading;
+using SWS.Core.Models;
 
 namespace SWS.Desktop.ViewModels;
 
@@ -13,7 +14,7 @@ public partial class DashboardPageViewModel : ObservableObject
     private readonly DispatcherTimer _timer;
     private CancellationTokenSource? _refreshCts;
 
-    public ObservableCollection<LatestReadingRow> Rows { get; } = new();
+    public ObservableCollection<LatestReadingSnapshot> Rows { get; } = new();
 
     [ObservableProperty] private string _status = "Idle";
     [ObservableProperty] private bool _autoRefreshEnabled = true;

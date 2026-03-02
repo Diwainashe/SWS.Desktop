@@ -4,7 +4,9 @@ using Microsoft.Extensions.Hosting;
 using SWS.Acquisition;
 using SWS.Core.Abstractions;
 using SWS.Core.Profiles;
+using SWS.Core.Services;
 using SWS.Data;
+using SWS.Data.Seed;
 using SWS.Desktop.Services;
 using SWS.Desktop.ViewModels;
 using SWS.Desktop.Views;
@@ -36,6 +38,9 @@ public partial class App : Application
                 // EF: Factory is correct for desktop apps
                 services.AddDbContextFactory<SwsDbContext>(options =>
                     options.UseSqlServer(cs));
+                // EF: also register the scoped context because DevicePollerService injects SwsDbContext directly
+                services.AddDbContext<SwsDbContext>(options =>
+                    options.UseSqlServer(cs));
                 //Config
                 services.AddSingleton<AppSettingsService>();
                 services.AddSingleton<AppThemeService>();
@@ -53,7 +58,8 @@ public partial class App : Application
 
                 // Background poller
                 services.AddHostedService<PollingHostedService>();
-                services.AddSingleton<ILatestReadingsBus, LatestReadingsBus>();
+                services.AddSingleton<SWS.Desktop.Services.LatestReadingsBus>();
+                services.AddSingleton<SWS.Core.Services.ILatestReadingsBus>(sp => sp.GetRequiredService<SWS.Desktop.Services.LatestReadingsBus>());
 
                 // Profiles (device-specific templates + formatting)
                 // register individual profiles
@@ -69,7 +75,7 @@ public partial class App : Application
                 services.AddSingleton<MainWindow>();
 
                 // Pages + Page VMs MUST be transient (created per navigation scope)
-                services.AddTransient<DashboardPageViewModel>();
+                services.AddTransient<DashboardViewModel>();
                 services.AddTransient<DevicesViewModel>();
                 services.AddTransient<PointsViewModel>();
                 services.AddTransient<SettingsViewModel>();
@@ -84,6 +90,20 @@ public partial class App : Application
                 // services.AddTransient<ConfigView>();
             })
             .Build();
+
+
+        // ----------------------------
+        // Seed PointTemplates (once)
+        // ----------------------------
+        using (var scope = _host.Services.CreateScope())
+        {
+            // Use the DbContextFactory because it's safe for desktop apps
+            var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<SwsDbContext>>();
+            await using var db = await dbFactory.CreateDbContextAsync();
+
+            // This is safe to call on every startup (it checks if empty)
+            PointTemplateSeeder.SeedIfEmpty(db);
+        }
 
         var settings = _host.Services.GetRequiredService<AppSettingsService>();
         var themeSvc = _host.Services.GetRequiredService<AppThemeService>();

@@ -3,7 +3,7 @@ using SWS.Core.Abstractions;
 using SWS.Core.Models;
 using SWS.Data;
 using SWS.Modbus;
-using SWS.Desktop.Services;
+using SWS.Core.Services;
 using System.Collections.Concurrent;
 using System.Net.Sockets;
 
@@ -82,7 +82,7 @@ public sealed class DevicePollerService
             await _db.SaveChangesAsync(ct);
             // Notify UI
             if (anyLatestChangedForDevice)
-                _latestBus.Publish(new LatestReadingsUpdatedEventArgs(device.Id, nowLocal));
+                _latestBus.Publish(device.Id, nowLocal);
         }
 
 

@@ -4,65 +4,69 @@ using SWS.Core.Models;
 namespace SWS.Data.Seed;
 
 /// <summary>
-/// Seeds standard template keys for a device family (GM9907-L5).
-/// No addresses here. Users map addresses in PointConfigs per device.
+/// Seeds PointTemplates for known device types.
+/// Safe to run on every startup (it only seeds if empty).
 /// </summary>
 public static class PointTemplateSeeder
 {
     public static void SeedIfEmpty(SwsDbContext db)
     {
-        // Only seed once (safe on every startup)
+        // Only seed once
         if (db.PointTemplates.Any())
             return;
 
-        const string deviceType = "GM9907-L5";
+        const string deviceType = nameof(DeviceType.GM9907_L5); // "GM9907_L5"
 
-        // --- Essentials for a tile (generic across many scale controllers) ---
         db.PointTemplates.AddRange(
-            // 1) Weight shown on main screen (engineering unit)
+
+            // =========================
+            // Essentials (tile + overview)
+            // =========================
+
             new PointTemplate
             {
                 DeviceType = deviceType,
                 Key = "Weight.Display",
                 Label = "Weight",
-                Unit = "kg",
-                DefaultArea = ModbusPointArea.HoldingRegister,
-                DefaultDataType = PointDataType.Int32,   // common in controllers (scaled)
+                Unit = "", // unit will be resolved by profile helpers later
+                Area = ModbusPointArea.HoldingRegister,
+                Address = 0,                 // leave 0 until you confirm manual mapping
                 DefaultLength = 2,
-                Scale = 0.001m,                          // placeholder until confirmed by manual
+                DataType = PointDataType.Int32,
+                Scale = 1m,
                 PollRateMs = 250,
                 IsEssential = true,
                 LogToHistory = true,
                 HistoryIntervalMs = 1000
             },
 
-            // 2) Flowrate shown on main screen (t/h as per HMI)
             new PointTemplate
             {
                 DeviceType = deviceType,
                 Key = "Flowrate.Actual",
                 Label = "Flowrate",
-                Unit = "t/h",
-                DefaultArea = ModbusPointArea.HoldingRegister,
-                DefaultDataType = PointDataType.Int32,   // typical; user can switch to Float32 if manual says so
+                Unit = "", // unit resolved by profile helpers later
+                Area = ModbusPointArea.HoldingRegister,
+                Address = 0,
                 DefaultLength = 2,
-                Scale = 0.001m,                          // placeholder until confirmed by manual
+                DataType = PointDataType.Int32,
+                Scale = 1m,
                 PollRateMs = 500,
                 IsEssential = true,
                 LogToHistory = true,
                 HistoryIntervalMs = 2000
             },
 
-            // 3) Running/Stopped flag (often coil/discrete, but leave as default + user sets it)
             new PointTemplate
             {
                 DeviceType = deviceType,
                 Key = "Status.RunState",
                 Label = "Run State",
                 Unit = "",
-                DefaultArea = ModbusPointArea.Coil,
-                DefaultDataType = PointDataType.UInt16,
+                Area = ModbusPointArea.Coil,
+                Address = 0,
                 DefaultLength = 1,
+                DataType = PointDataType.Bool,
                 Scale = 1m,
                 PollRateMs = 500,
                 IsEssential = true,
@@ -70,16 +74,16 @@ public static class PointTemplateSeeder
                 HistoryIntervalMs = 0
             },
 
-            // 4) Alarm code (numeric, app maps to meaning; store text only on errors)
             new PointTemplate
             {
                 DeviceType = deviceType,
                 Key = "Alarm.Code",
                 Label = "Alarm Code",
                 Unit = "",
-                DefaultArea = ModbusPointArea.HoldingRegister,
-                DefaultDataType = PointDataType.UInt16,
+                Area = ModbusPointArea.HoldingRegister,
+                Address = 0,
                 DefaultLength = 1,
+                DataType = PointDataType.UInt16,
                 Scale = 1m,
                 PollRateMs = 1000,
                 IsEssential = true,
@@ -87,19 +91,74 @@ public static class PointTemplateSeeder
                 HistoryIntervalMs = 10000
             },
 
-            // 5) Target weight (seen on top bar)
+            // =========================
+            // Helper points for decoding (decimals + units)
+            // =========================
+
             new PointTemplate
             {
                 DeviceType = deviceType,
-                Key = "Recipe.TargetWeight",
-                Label = "Target",
-                Unit = "kg",
-                DefaultArea = ModbusPointArea.HoldingRegister,
-                DefaultDataType = PointDataType.Int32,
-                DefaultLength = 2,
-                Scale = 0.001m, // placeholder
+                Key = "Weight.Decimal",
+                Label = "Weight Decimals",
+                Unit = "",
+                Area = ModbusPointArea.HoldingRegister,
+                Address = 0,
+                DefaultLength = 1,
+                DataType = PointDataType.UInt16,
+                Scale = 1m,
                 PollRateMs = 2000,
-                IsEssential = true,
+                IsEssential = false,
+                LogToHistory = false,
+                HistoryIntervalMs = 0
+            },
+
+            new PointTemplate
+            {
+                DeviceType = deviceType,
+                Key = "Weight.Unit",
+                Label = "Weight Unit Code",
+                Unit = "",
+                Area = ModbusPointArea.HoldingRegister,
+                Address = 0,
+                DefaultLength = 1,
+                DataType = PointDataType.UInt16,
+                Scale = 1m,
+                PollRateMs = 2000,
+                IsEssential = false,
+                LogToHistory = false,
+                HistoryIntervalMs = 0
+            },
+
+            new PointTemplate
+            {
+                DeviceType = deviceType,
+                Key = "Flowrate.Decimal",
+                Label = "Flowrate Decimals",
+                Unit = "",
+                Area = ModbusPointArea.HoldingRegister,
+                Address = 0,
+                DefaultLength = 1,
+                DataType = PointDataType.UInt16,
+                Scale = 1m,
+                PollRateMs = 2000,
+                IsEssential = false,
+                LogToHistory = false,
+                HistoryIntervalMs = 0
+            },
+
+            new PointTemplate
+            {
+                DeviceType = deviceType,
+                Key = "Flowrate.Unit",
+                Label = "Flowrate Unit Code",
+                Unit = "",
+                Area = ModbusPointArea.HoldingRegister,
+                Address = 0,
+                DefaultLength = 1,
+                DataType = PointDataType.UInt16,
+                Scale = 1m,
+                PollRateMs = 2000,
+                IsEssential = false,
                 LogToHistory = false,
                 HistoryIntervalMs = 0
             }

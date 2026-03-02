@@ -17,6 +17,9 @@ public partial class DevicesViewModel : ObservableObject
     public ObservableCollection<DeviceType> DeviceTypes { get; }
         = new(Enum.GetValues<DeviceType>());
 
+    public bool CanLoadTemplate =>
+    SelectedDevice != null && EditDeviceType != DeviceType.Generic;
+
     [ObservableProperty] private DeviceConfig? _selectedDevice;
 
     [ObservableProperty] private string _editName = "";
@@ -48,6 +51,7 @@ public partial class DevicesViewModel : ObservableObject
         EditPollMs = value.PollMs;
         EditEnabled = value.IsEnabled;
         EditDeviceType = value.DeviceType;
+        OnPropertyChanged(nameof(CanLoadTemplate));
     }
 
     [RelayCommand]
@@ -133,32 +137,37 @@ public partial class DevicesViewModel : ObservableObject
     }
 
     // =========================
-    // NEW: Template Loader
+    // DB-Template Loader
     // =========================
     [RelayCommand]
     private async Task LoadTemplateAsync()
     {
         if (SelectedDevice == null)
         {
-            Status = "Select device first.";
+            Status = "Select a device first.";
             return;
         }
 
-        var profile = _profiles.Get(SelectedDevice.DeviceType);
-
-        var defaults = profile.GetDefaultPoints(SelectedDevice.Id);
-
-        if (!defaults.Any())
+        if (EditDeviceType == DeviceType.Generic)
         {
-            Status = "No template for this device type.";
+            Status = "Select a specific device type first (not Generic).";
             return;
         }
 
-        var added = await _data.AddDefaultPointsForDeviceAsync(
+        // Ensure device type is actually saved to DB before we load its templates
+        SelectedDevice.DeviceType = EditDeviceType;
+        await _data.UpdateDeviceAsync(SelectedDevice, CancellationToken.None);
+
+        // Copy templates -> PointConfigs (skips duplicate Keys)
+        int added = await _data.AddDefaultPointsFromTemplatesAsync(
             SelectedDevice.Id,
-            defaults,
+            EditDeviceType,
             CancellationToken.None);
 
-        Status = $"Inserted {added} template points.";
+        Status = added == 0
+            ? $"No templates found for {EditDeviceType} (or already loaded)."
+            : $"Loaded {added} template points for {EditDeviceType}.";
+
+        OnPropertyChanged(nameof(CanLoadTemplate));
     }
 }

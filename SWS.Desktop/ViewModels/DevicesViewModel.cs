@@ -1,7 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SWS.Core.Models;
-using SWS.Core.Profiles;
 using SWS.Desktop.Services;
 using System.Collections.ObjectModel;
 
@@ -10,15 +9,19 @@ namespace SWS.Desktop.ViewModels;
 public partial class DevicesViewModel : ObservableObject
 {
     private readonly ConfigDataService _data;
-    private readonly DeviceProfileRegistry _profiles;
 
     public ObservableCollection<DeviceConfig> Devices { get; } = new();
 
     public ObservableCollection<DeviceType> DeviceTypes { get; }
         = new(Enum.GetValues<DeviceType>());
 
+    /// <summary>
+    /// Enables "Load Template" only when:
+    /// - a device is selected
+    /// - a specific type is chosen (not Generic)
+    /// </summary>
     public bool CanLoadTemplate =>
-    SelectedDevice != null && EditDeviceType != DeviceType.Generic;
+        SelectedDevice != null && EditDeviceType != DeviceType.Generic;
 
     [ObservableProperty] private DeviceConfig? _selectedDevice;
 
@@ -32,17 +35,20 @@ public partial class DevicesViewModel : ObservableObject
 
     [ObservableProperty] private string _status = "";
 
-    public DevicesViewModel(ConfigDataService data,
-                            DeviceProfileRegistry profiles)
+    public DevicesViewModel(ConfigDataService data)
     {
         _data = data;
-        _profiles = profiles;
         _ = RefreshAsync();
     }
 
     partial void OnSelectedDeviceChanged(DeviceConfig? value)
     {
-        if (value == null) return;
+        if (value == null)
+        {
+            // when user deselects
+            OnPropertyChanged(nameof(CanLoadTemplate));
+            return;
+        }
 
         EditName = value.Name;
         EditIp = value.IpAddress;
@@ -51,6 +57,13 @@ public partial class DevicesViewModel : ObservableObject
         EditPollMs = value.PollMs;
         EditEnabled = value.IsEnabled;
         EditDeviceType = value.DeviceType;
+
+        OnPropertyChanged(nameof(CanLoadTemplate));
+    }
+
+    partial void OnEditDeviceTypeChanged(DeviceType value)
+    {
+        // User changed the dropdown manually
         OnPropertyChanged(nameof(CanLoadTemplate));
     }
 
@@ -75,13 +88,14 @@ public partial class DevicesViewModel : ObservableObject
         EditEnabled = true;
         EditDeviceType = DeviceType.Generic;
         Status = "New device.";
+
+        OnPropertyChanged(nameof(CanLoadTemplate));
     }
 
     [RelayCommand]
     private async Task SaveAsync()
     {
-        if (string.IsNullOrWhiteSpace(EditName) ||
-            string.IsNullOrWhiteSpace(EditIp))
+        if (string.IsNullOrWhiteSpace(EditName) || string.IsNullOrWhiteSpace(EditIp))
         {
             Status = "Name + IP required.";
             return;
@@ -118,6 +132,7 @@ public partial class DevicesViewModel : ObservableObject
         }
 
         await RefreshAsync();
+        OnPropertyChanged(nameof(CanLoadTemplate));
     }
 
     [RelayCommand]
@@ -129,8 +144,7 @@ public partial class DevicesViewModel : ObservableObject
             return;
         }
 
-        await _data.DeleteDeviceAsync(SelectedDevice.Id,
-                                      CancellationToken.None);
+        await _data.DeleteDeviceAsync(SelectedDevice.Id, CancellationToken.None);
         Status = "Deleted.";
         await RefreshAsync();
         New();
@@ -154,19 +168,28 @@ public partial class DevicesViewModel : ObservableObject
             return;
         }
 
-        // Ensure device type is actually saved to DB before we load its templates
+        // Save DeviceType first (so templates match)
         SelectedDevice.DeviceType = EditDeviceType;
         await _data.UpdateDeviceAsync(SelectedDevice, CancellationToken.None);
 
-        // Copy templates -> PointConfigs (skips duplicate Keys)
         int added = await _data.AddDefaultPointsFromTemplatesAsync(
             SelectedDevice.Id,
             EditDeviceType,
             CancellationToken.None);
 
-        Status = added == 0
-            ? $"No templates found for {EditDeviceType} (or already loaded)."
-            : $"Loaded {added} template points for {EditDeviceType}.";
+        if (added == 0)
+        {
+            Status = $"No templates found for {EditDeviceType} (or already loaded).";
+            return;
+        }
+
+        // Count placeholders (Address=0) so you immediately know why polling might not happen yet
+        var points = await _data.GetPointsForDeviceAsync(SelectedDevice.Id, CancellationToken.None);
+        int unmapped = points.Count(p => p.Address <= 0);
+
+        Status = unmapped > 0
+            ? $"Loaded {added} template points. {unmapped} not mapped yet (Address=0) — edit in Points to start polling."
+            : $"Loaded {added} template points — ready to poll.";
 
         OnPropertyChanged(nameof(CanLoadTemplate));
     }

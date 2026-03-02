@@ -164,56 +164,76 @@ public sealed class ConfigDataService
     /// Returns number of points added.
     /// </summary>
     public async Task<int> AddDefaultPointsFromTemplatesAsync(
-     int deviceId,
-     DeviceType deviceType,
-     CancellationToken ct)
+    int deviceId,
+    DeviceType deviceType,
+    CancellationToken ct)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
-        string typeKey = deviceType.ToString(); // e.g. "GM9907_L5"
+        // Templates stored by DeviceType as string.
+        // Support both enum-name ("GM9907_L5") and legacy dashed ("GM9907-L5") rows.
+        string dtEnumName = deviceType.ToString();          // "GM9907_L5"
+        string dtLegacyDash = dtEnumName.Replace('_', '-'); // "GM9907-L5"
 
-        // Templates for that device type
         var templates = await db.PointTemplates
             .AsNoTracking()
-            .Where(t => t.DeviceType == typeKey)
-            .OrderBy(t => t.Key)
+            .Where(t => t.DeviceType == dtEnumName || t.DeviceType == dtLegacyDash)
+            .OrderByDescending(t => t.IsEssential)
+            .ThenBy(t => t.Key)
             .ToListAsync(ct);
 
         if (templates.Count == 0)
             return 0;
 
-        // Avoid duplicates (per device) by Key
+        // Existing keys for this device (avoid duplicates) - use HashSet for speed + case-insensitive match
         var existingKeys = await db.PointConfigs
+            .AsNoTracking()
             .Where(p => p.DeviceConfigId == deviceId)
             .Select(p => p.Key)
             .ToListAsync(ct);
+
+        var existingKeySet = new HashSet<string>(existingKeys, StringComparer.OrdinalIgnoreCase);
 
         int added = 0;
 
         foreach (var t in templates)
         {
-            if (existingKeys.Contains(t.Key))
+            if (string.IsNullOrWhiteSpace(t.Key))
+                continue;
+
+            if (existingKeySet.Contains(t.Key))
                 continue;
 
             db.PointConfigs.Add(new PointConfig
             {
                 DeviceConfigId = deviceId,
-                Key = t.Key,
-                Label = t.Label,
-                Unit = t.Unit,
+
+                // Identity / UI
+                Key = t.Key.Trim(),
+                Label = (t.Label ?? "").Trim(),
+                Unit = (t.Unit ?? "").Trim(),
+
+                // Modbus mapping defaults (Address may be 0 = placeholder)
                 Area = t.Area,
                 Address = t.Address,
-                Length = t.DefaultLength,
+                Length = t.DefaultLength == 0 ? (ushort)1 : t.DefaultLength,
+
+                // Decode / scale
                 DataType = t.DataType,
-                Scale = t.Scale,
-                PollRateMs = t.PollRateMs,
-                IsEssential = t.IsEssential,
+                Scale = t.Scale == 0m ? 1m : t.Scale,
+
+                // Polling / history
+                PollRateMs = t.PollRateMs <= 0 ? 5000 : t.PollRateMs,
                 LogToHistory = t.LogToHistory,
-                HistoryIntervalMs = t.HistoryIntervalMs
+                HistoryIntervalMs = t.HistoryIntervalMs < 0 ? 0 : t.HistoryIntervalMs
             });
 
+            existingKeySet.Add(t.Key);
             added++;
         }
+
+        if (added == 0)
+            return 0;
 
         await db.SaveChangesAsync(ct);
         return added;

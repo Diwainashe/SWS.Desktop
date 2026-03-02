@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using SWS.Core.Models;
 
@@ -8,24 +9,69 @@ public sealed class Gm9907L5Profile : IDeviceProfile
 {
     public DeviceType DeviceType => DeviceType.GM9907_L5;
 
+    // Alarm Info 1 (40004) bit meanings (from your spreadsheet)
+    private static readonly IReadOnlyDictionary<int, string> AlarmInfo1Bits = new Dictionary<int, string>
+    {
+        [0] = "Emergency Stop",
+        [1] = "Overload Alarm",
+        [2] = "Motor Alarm",
+        [3] = "Loadcell Signal Unstable",
+        [4] = "Loadcell Over Range",
+        [5] = "Loadcell Under Range",
+        [6] = "Loadcell Error",
+        [7] = "Overweight",
+        [8] = "Underweight",
+        [9] = "Over Tolerance",
+        [10] = "Under Tolerance",
+        [11] = "Feeding Gate Open Overtime",
+        [12] = "Feeding Gate Not Closed",
+        [13] = "Feeding Gate Close Overtime",
+        [14] = "Discharge Gate Open Overtime",
+        [15] = "Discharge Gate Close Overtime",
+    };
+
+    // Alarm Info 2 (40005) bit meanings (from your spreadsheet)
+    private static readonly IReadOnlyDictionary<int, string> AlarmInfo2Bits = new Dictionary<int, string>
+    {
+        [0] = "Motor Parameter Error",
+        [1] = "Calibration Fail, Unstable",
+        [2] = "Calibration Fail, Loadcell Input High",
+        [3] = "Calibration Fail, Loadcell Input Low",
+        [4] = "Calibration Fail, Unstable",
+        [5] = "Calibration Fail, Weight Over",
+        [6] = "Calibration Fail, Weight Under",
+        [7] = "Calibration Fail, Weight Value Error",
+        [8] = "Calibration Fail, Over Resolution",
+        [9] = "Calibration Fail, No Gain Voltage Record",
+        [10] = "Over&Under Pause",
+        [11] = "Fill Timeout",
+        [12] = "Disc Timeout",
+        // 13..15 reserved
+    };
+
     public string FormatDisplay(
         string key,
         decimal? value,
         IReadOnlyList<LatestReadingSnapshot> allReadings)
     {
-        // if bad/empty, show dash
-        if (value == null)
+        // bad/empty
+        if (value is null)
             return "—";
 
-        // Find this point's data type (so we only show ON/OFF for true boolean points)
+        // ✅ Strict rule: ONLY show ON/OFF if THIS point is Bool
         var thisPoint = allReadings.FirstOrDefault(x => x.Key == key);
         var dataType = thisPoint?.DataType ?? PointDataType.UInt16;
-
-        // ✅ Only render ON/OFF if the point itself is Bool
         if (dataType == PointDataType.Bool)
             return value.Value == 0m ? "OFF" : "ON";
 
-        // Device-specific formatting
+        // Alarm decoding (bitfields)
+        if (key == "Alarm.Info1")
+            return DecodeAlarmBits((ushort)value.Value, AlarmInfo1Bits);
+
+        if (key == "Alarm.Info2")
+            return DecodeAlarmBits((ushort)value.Value, AlarmInfo2Bits);
+
+        // Device-specific numeric formatting
         switch (key)
         {
             case "Flowrate.Actual":
@@ -63,14 +109,36 @@ public sealed class Gm9907L5Profile : IDeviceProfile
                 }
 
             default:
-                // generic numeric formatting for this device when no special rule exists
                 return value.Value.ToString("0.###");
         }
     }
 
+    private static string DecodeAlarmBits(ushort raw, IReadOnlyDictionary<int, string> map)
+    {
+        // No alarms set
+        if (raw == 0)
+            return "OK";
+
+        var active = new List<string>();
+
+        for (int bit = 0; bit < 16; bit++)
+        {
+            bool isSet = (raw & (1 << bit)) != 0;
+            if (!isSet)
+                continue;
+
+            // If bit is reserved/unknown, still show something useful
+            if (map.TryGetValue(bit, out var label))
+                active.Add(label);
+            else
+                active.Add($"Bit {bit}");
+        }
+
+        return string.Join("; ", active);
+    }
+
     private static string FormatDecimal(decimal value, int decimals, string unit)
     {
-        // guard: manual could send weird decimals
         if (decimals < 0) decimals = 0;
         if (decimals > 6) decimals = 6;
 
@@ -81,8 +149,6 @@ public sealed class Gm9907L5Profile : IDeviceProfile
     private static int GetInt(IReadOnlyList<LatestReadingSnapshot> list, string key)
     {
         var item = list.FirstOrDefault(x => x.Key == key);
-
-        // If missing, default to 0
         if (item?.ValueNumeric is null)
             return 0;
 

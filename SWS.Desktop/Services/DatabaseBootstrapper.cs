@@ -26,6 +26,6 @@ public static class DatabaseBootstrapper
 
         // 2) Seed reference data (safe to call repeatedly)
         // IMPORTANT: seeding happens after migrate, using SAME db/context/connection.
-        PointTemplateSeeder.SeedIfEmpty(db);
+        PointTemplateSeeder.SeedMissing(db);
     }
 }

@@ -48,7 +48,7 @@ public partial class App : Application
                 services.AddSingleton<SWS.Core.Abstractions.ITimeProvider, SWS.Core.Abstractions.SouthAfricaTimeProvider>();
 
                 // Modbus
-                services.AddSingleton<IModbusClient, NModbusClient>();
+                services.AddScoped<IModbusClient, NModbusClient>();
                 services.AddSingleton<IDecoder, BasicDecoder>();
 
                 // Acquisition + data services (scoped is fine; navigation will create scopes)
@@ -101,8 +101,8 @@ public partial class App : Application
             var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<SwsDbContext>>();
             await using var db = await dbFactory.CreateDbContextAsync();
 
-            // This is safe to call on every startup (it checks if empty)
-            PointTemplateSeeder.SeedIfEmpty(db);
+            // This is safe to call if table already has rows; it only adds missing templates (and can overwrite existing ones if you choose)
+            PointTemplateSeeder.SeedMissing(db);
         }
 
         var settings = _host.Services.GetRequiredService<AppSettingsService>();

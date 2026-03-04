@@ -2,6 +2,7 @@
 using SWS.Core.Models;
 using SWS.Data;
 using System.ComponentModel.DataAnnotations;
+using SWS.Desktop.Templates;
 
 namespace SWS.Desktop.Services;
 
@@ -237,6 +238,81 @@ public sealed class ConfigDataService
 
         await db.SaveChangesAsync(ct);
         return added;
+    }
+    public async Task<int> RestorePointsFromJsonTemplateAsync(
+    int deviceId,
+    DeviceType deviceType,
+    DeviceTemplateDto template,
+    CancellationToken ct)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+        var existing = await db.PointConfigs
+            .Where(p => p.DeviceConfigId == deviceId)
+            .ToListAsync(ct);
+
+        int changed = 0;
+
+        foreach (var t in template.Points)
+        {
+            // Parse enums stored as string in JSON
+            if (!Enum.TryParse<ModbusPointArea>(t.Area, out var area))
+                area = ModbusPointArea.HoldingRegister;
+
+            if (!Enum.TryParse<PointDataType>(t.DataType, out var dataType))
+                dataType = PointDataType.UInt16;
+
+            var row = existing.FirstOrDefault(x => x.Key == t.Key);
+
+            if (row is null)
+            {
+                db.PointConfigs.Add(new PointConfig
+                {
+                    DeviceConfigId = deviceId,
+                    Key = t.Key,
+                    Label = t.Label,
+                    Unit = t.Unit,
+
+                    Area = area,
+                    Address = t.Address,
+                    Length = (ushort)Math.Max(1, t.Length),
+
+                    DataType = dataType,
+                    Scale = t.Scale == 0 ? 1m : t.Scale,
+
+                    PollRateMs = t.PollRateMs <= 0 ? template.Defaults.PollRateMs : t.PollRateMs,
+                    LogToHistory = t.LogToHistory,
+                    HistoryIntervalMs = t.HistoryIntervalMs
+                });
+
+                changed++;
+                continue;
+            }
+
+            // Existing point: restore mapping fields (source of truth = JSON)
+            row.Area = area;
+            row.Address = t.Address;
+            row.Length = (ushort)Math.Max(1, t.Length);
+
+            row.DataType = dataType;
+            row.Scale = t.Scale == 0 ? 1m : t.Scale;
+
+            row.PollRateMs = t.PollRateMs <= 0 ? template.Defaults.PollRateMs : t.PollRateMs;
+            row.LogToHistory = t.LogToHistory;
+            row.HistoryIntervalMs = t.HistoryIntervalMs;
+
+            // Optional: preserve user custom label/unit unless blank
+            if (string.IsNullOrWhiteSpace(row.Label))
+                row.Label = t.Label;
+
+            if (string.IsNullOrWhiteSpace(row.Unit))
+                row.Unit = t.Unit;
+
+            changed++;
+        }
+
+        await db.SaveChangesAsync(ct);
+        return changed;
     }
 }
 

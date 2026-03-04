@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using SWS.Core.Models;
 using SWS.Desktop.Services;
 using System.Collections.ObjectModel;
+using SWS.Desktop.Templates;
 
 namespace SWS.Desktop.ViewModels;
 
@@ -164,33 +165,32 @@ public partial class DevicesViewModel : ObservableObject
 
         if (EditDeviceType == DeviceType.Generic)
         {
-            Status = "Select a specific device type first (not Generic).";
+            Status = "Generic has no template. Configure points manually.";
             return;
         }
 
-        // Save DeviceType first (so templates match)
+        // Ensure device type is saved before restore
         SelectedDevice.DeviceType = EditDeviceType;
         await _data.UpdateDeviceAsync(SelectedDevice, CancellationToken.None);
 
-        int added = await _data.AddDefaultPointsFromTemplatesAsync(
-            SelectedDevice.Id,
-            EditDeviceType,
-            CancellationToken.None);
+        // Load JSON template
+        var store = new DeviceTemplateStore();
+        var template = store.TryLoad(EditDeviceType);
 
-        if (added == 0)
+        if (template == null)
         {
-            Status = $"No templates found for {EditDeviceType} (or already loaded).";
+            Status = $"No JSON template found for {EditDeviceType}.";
             return;
         }
 
-        // Count placeholders (Address=0) so you immediately know why polling might not happen yet
-        var points = await _data.GetPointsForDeviceAsync(SelectedDevice.Id, CancellationToken.None);
-        int unmapped = points.Count(p => p.Address <= 0);
+        // Restore/repair config from JSON (source of truth)
+        int changed = await _data.RestorePointsFromJsonTemplateAsync(
+            SelectedDevice.Id,
+            EditDeviceType,
+            template,
+            CancellationToken.None);
 
-        Status = unmapped > 0
-            ? $"Loaded {added} template points. {unmapped} not mapped yet (Address=0) — edit in Points to start polling."
-            : $"Loaded {added} template points — ready to poll.";
-
+        Status = $"Restored {changed} point mappings from JSON for {EditDeviceType}.";
         OnPropertyChanged(nameof(CanLoadTemplate));
     }
 }

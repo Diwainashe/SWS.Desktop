@@ -5,21 +5,88 @@
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <!-- Header -->
+            <RowDefinition Height="Auto"/>
+            <!-- Diagnostics -->
             <RowDefinition Height="*"/>
+            <!-- DataGrid -->
         </Grid.RowDefinitions>
 
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Text="Live Readings" FontSize="18" FontWeight="SemiBold"/>
+        <!-- HEADER -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal">
+            <TextBlock Text="Live Readings" FontSize="18" FontWeight="SemiBold" Margin="0,0,16,0"/>
             <Button Content="Refresh" Padding="10,4" Command="{Binding RefreshCommand}" Margin="0,0,8,0"/>
             <Button Content="Auto" Padding="10,4" Command="{Binding ToggleAutoRefreshCommand}" Margin="0,0,8,0"/>
             <TextBlock Text="{Binding Status}" VerticalAlignment="Center" Opacity="0.8"/>
         </StackPanel>
 
-        <Border Style="{StaticResource CardBorder}" Padding="0">
-            <DataGrid Margin="0"
-              ItemsSource="{Binding Rows}"
-              AutoGenerateColumns="False"
-              IsReadOnly="True">
+        <!-- DIAGNOSTICS -->
+        <GroupBox Header="Diagnostics" Margin="0,12,0,0" Grid.Row="1">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid Margin="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Alarms -->
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="Active Alarms" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <ItemsControl ItemsSource="{Binding Diagnostics.AlarmGroups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,0,0,10">
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Opacity="0.9"/>
+                                <ItemsControl ItemsSource="{Binding Items}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="•  {Binding}" TextWrapping="Wrap"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- States -->
+            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                <TextBlock Text="Active States" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <ItemsControl ItemsSource="{Binding Diagnostics.StateGroups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,0,0,10">
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Opacity="0.9"/>
+                                <ItemsControl ItemsSource="{Binding Items}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="•  {Binding}" TextWrapping="Wrap"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</GroupBox>
+
+        <!-- DATA GRID -->
+        <Border Grid.Row="2"
+                Style="{StaticResource CardBorder}"
+                Padding="0">
+
+            <DataGrid
+                ItemsSource="{Binding Rows}"
+                AutoGenerateColumns="False"
+                IsReadOnly="True"
+                VerticalScrollBarVisibility="Auto"
+                HorizontalScrollBarVisibility="Auto"
+                EnableRowVirtualization="True">
+
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="160"/>
                     <DataGridTextColumn Header="Label" Binding="{Binding Label}" Width="160"/>
@@ -28,7 +95,9 @@
                     <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="100"/>
                     <DataGridTextColumn Header="Timestamp (Local)" Binding="{Binding TimestampLocal}" Width="180"/>
                 </DataGrid.Columns>
+
             </DataGrid>
         </Border>
+
     </Grid>
 </UserControl>

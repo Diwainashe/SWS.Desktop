@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SWS.Core.Abstractions;
 using SWS.Core.Models;
+using SWS.Core.Modbus;
 using SWS.Data;
 using SWS.Modbus;
 using SWS.Core.Services;
@@ -120,18 +121,28 @@ public sealed class DevicePollerService
                 case ModbusPointArea.HoldingRegister:
                     {
                         ushort[] regs = await _modbus.ReadHoldingRegistersAsync(device, point.Address, point.Length, ct);
+
+                        if (regs.Length < point.Length)
+                            return ReadResult.Error(ReadingQuality.BadData, "Modbus read returned no data (illegal address or comms issue).");
+
                         var numeric = _decoder.DecodeNumeric(point, regs);
                         if (numeric is null)
                             return ReadResult.Error(ReadingQuality.BadData, "Decode returned null.");
+
                         return ReadResult.Ok(numeric.Value);
                     }
 
                 case ModbusPointArea.InputRegister:
                     {
                         ushort[] regs = await _modbus.ReadInputRegistersAsync(device, point.Address, point.Length, ct);
+
+                        if (regs.Length < point.Length)
+                            return ReadResult.Error(ReadingQuality.BadData, "Modbus read returned no data (illegal address or comms issue).");
+
                         var numeric = ModbusDecoder.DecodeToNumeric(regs, point);
                         if (numeric is null)
                             return ReadResult.Error(ReadingQuality.BadData, "Decode returned null.");
+
                         return ReadResult.Ok(numeric.Value);
                     }
 
@@ -146,6 +157,8 @@ public sealed class DevicePollerService
 
                         // For your UI/DB model, treat first bit as this point’s value.
                         bool value = bits.Length > 0 && bits[0];
+                        if (bits.Length == 0)
+                            return ReadResult.Error(ReadingQuality.BadData, "Modbus read returned no data (illegal address or comms issue).");
                         return ReadResult.Ok(value ? 1m : 0m);
                     }
 
@@ -156,6 +169,8 @@ public sealed class DevicePollerService
                         bool[] bits = await _modbus.ReadDiscreteInputsAsync(device, point.Address, len, ct);
 
                         bool value = bits.Length > 0 && bits[0];
+                        if (bits.Length == 0)
+                            return ReadResult.Error(ReadingQuality.BadData, "Modbus read returned no data (illegal address or comms issue).");
                         return ReadResult.Ok(value ? 1m : 0m);
                     }
 

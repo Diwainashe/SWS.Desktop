@@ -5,116 +5,274 @@ using SWS.Core.Models;
 
 namespace SWS.Core.Profiles;
 
+/// <summary>
+/// GM9907-L5 display formatting rules:
+/// - ON/OFF is ONLY for Bool points (DataType == Bool)
+/// - Weight/Flowrate: use unit + decimals from helper registers
+/// - State + Alarm registers (UInt16) are decoded as bitfields (active-only)
+/// </summary>
 public sealed class Gm9907L5Profile : IDeviceProfile
 {
     public DeviceType DeviceType => DeviceType.GM9907_L5;
-
-    // Alarm.Info1 (40004) bit meanings (from your spreadsheet)
-    private static readonly IReadOnlyDictionary<int, string> AlarmInfo1Bits =
-        new Dictionary<int, string>
-        {
-            { 0,  "Delivery Done Alarm" },
-            { 1,  "Fail, Zero Over Range" },
-            { 2,  "Fail, Weight Unstable" },
-            { 3,  "Fail, Process Running" },
-            { 4,  "Target Is 0, Unable To Start" },
-            { 5,  "Over/Under Alarm" },
-            { 6,  "Weight OFL, Unable To Start" },
-            { 7,  "Continuous Flowrate Low" },
-            { 8,  "Stable Judge Overtime scale unstable" },
-            { 9,  "Target Error, Unable To Start" },
-            { 10, "Clear ACUM Before Next Run" },
-            { 11, "Discharge Gate Not Closed" },
-            { 12, "Feeding Gate Not Closed" },
-            { 13, "Feeding Gate Close Overtime" },
-            { 14, "Discharge Gate Open Overtime" },
-            { 15, "Discharge Gate Close Overtime" },
-        };
-
-    // Alarm.Info2 (40005) bit meanings (from your spreadsheet)
-    private static readonly IReadOnlyDictionary<int, string> AlarmInfo2Bits =
-        new Dictionary<int, string>
-        {
-            { 0,  "Motor Parameter Error" },
-            { 1,  "Calibration Fail, Unstable" },
-            { 2,  "Calibration Fail, Loadcell Input High (None Weight zero voltage input > 15625)" },
-            { 3,  "Calibration Fail, Loadcell Input Low (None Weight zero voltage input < 2)" },
-            { 4,  "Calibration Fail, Unstable" },
-            { 5,  "Calibration Fail, Weight Over (None Weight gain voltage input > 15625)" },
-            { 6,  "Calibration Fail, Weight Under (relative voltage negative)" },
-            { 7,  "Calibration Fail, Weight Value Error (write value is 0 or > Capacity)" },
-            { 8,  "Calibration Fail, Over Resolution (too high calibration resolution)" },
-            { 9,  "Calibration Fail, No Gain Voltage Record" },
-            { 10, "Over&Under Pause" },
-            { 11, "Fill Timeout" },
-            { 12, "Disc Timeout" },
-            { 13, "Reserved" },
-        };
 
     public string FormatDisplay(
         string key,
         decimal? value,
         IReadOnlyList<LatestReadingSnapshot> allReadings)
     {
-        // If missing/bad -> dash
+        // If missing or bad, show dash.
         if (value == null)
             return "—";
 
-        // Find this point's datatype so ON/OFF is purely datatype-driven
+        // Find this point's DataType so we NEVER guess.
         var thisPoint = allReadings.FirstOrDefault(x => x.Key == key);
         var dataType = thisPoint?.DataType ?? PointDataType.UInt16;
 
-        // ✅ Only show ON/OFF if the point itself is Bool
+        // ✅ 1) Only Bool points get ON/OFF.
         if (dataType == PointDataType.Bool)
             return value.Value == 0m ? "OFF" : "ON";
 
-        // ---- Device-specific special formatting ----
-
-        // Weight + Flowrate: decimals + unit code come from helper registers
-        if (key == "Flowrate.Actual")
+        // ✅ 2) Decode known GM bitfield registers (UInt16) as "active-only".
+        // These are not "boolean points"; they are status/alarm bitfields.
+        if (dataType == PointDataType.UInt16 || dataType == PointDataType.Int16)
         {
-            int decimals = GetInt(allReadings, "Flowrate.Decimal");
-            int unitCode = GetInt(allReadings, "Flowrate.Unit");
+            // We stored these as numeric decimals, but they represent a 16-bit word.
+            // Cast safely.
+            var word = ToUInt16(value.Value);
 
-            string unit = unitCode switch
-            {
-                0 => "g/h",
-                1 => "kg/h",
-                2 => "t/h",
-                3 => "lb/h",
-                _ => ""
-            };
+            if (key == "Alarm.Info1")
+                return DecodeAlarmInfo1(word);
 
-            return FormatDecimal(value.Value, decimals, unit);
+            if (key == "Alarm.Info2")
+                return DecodeAlarmInfo2(word);
+
+            if (key == "State.Weight")
+                return DecodeWeightState(word);
+
+            if (key == "State.Operating")
+                return DecodeOperatingState(word);
+
+            if (key == "State.Condition")
+                return DecodeConditionState(word);
         }
 
-        if (key == "Weight.Display")
+        // ✅ 3) Device-specific numeric formatting (weight/flowrate helpers)
+        switch (key)
         {
-            int decimals = GetInt(allReadings, "Weight.Decimal");
-            int unitCode = GetInt(allReadings, "Weight.Unit");
+            case "Flowrate.Actual":
+                {
+                    int decimals = GetInt(allReadings, "Flowrate.Decimal");
+                    int unitCode = GetInt(allReadings, "Flowrate.Unit");
 
-            string unit = unitCode switch
-            {
-                0 => "g",
-                1 => "kg",
-                2 => "t",
-                3 => "lb",
-                _ => ""
-            };
+                    string unit = unitCode switch
+                    {
+                        0 => "g/h",
+                        1 => "kg/h",
+                        2 => "t/h",
+                        3 => "lb/h",
+                        _ => ""
+                    };
 
-            return FormatDecimal(value.Value, decimals, unit);
+                    return FormatDecimal(value.Value, decimals, unit);
+                }
+
+            case "Weight.Display":
+                {
+                    int decimals = GetInt(allReadings, "Weight.Decimal");
+                    int unitCode = GetInt(allReadings, "Weight.Unit");
+
+                    string unit = unitCode switch
+                    {
+                        0 => "g",
+                        1 => "kg",
+                        2 => "t",
+                        3 => "lb",
+                        _ => ""
+                    };
+
+                    return FormatDecimal(value.Value, decimals, unit);
+                }
+
+            default:
+                // Generic numeric formatting for everything else.
+                return value.Value.ToString("0.###");
         }
-
-        // Alarm bitfields: show active alarm list
-        if (key == "Alarm.Info1")
-            return FormatAlarmBits(value.Value, AlarmInfo1Bits);
-
-        if (key == "Alarm.Info2")
-            return FormatAlarmBits(value.Value, AlarmInfo2Bits);
-
-        // Default numeric formatting
-        return value.Value.ToString("0.###");
     }
+
+    // =========================
+    // Bitfield decoding helpers
+    // =========================
+
+    private static string DecodeWeightState(ushort w)
+    {
+        // Register 40001 (Weight state)
+        // .0 0: Unstable, 1: Stable
+        // .1 0: Non-zero, 1: Zero
+        // .2 0: Positive sign, 1: Minus sign
+        // .3 Weight overflow
+        // .4 Negative weight overflow
+        // .5 Millivolts overflow
+        // .6 Millivolts negative overflow
+        // .7 Millivolts stable: 1, unstable: 0
+        // .8-.15 reserved
+
+        var parts = new List<string>();
+
+        // Binary meaning bits: always show the resolved meaning.
+        parts.Add(Bit(w, 0) ? "Stable" : "Unstable");
+        parts.Add(Bit(w, 1) ? "Zero" : "Non-zero");
+        parts.Add(Bit(w, 2) ? "Minus" : "Plus");
+
+        // Active-only flags:
+        AddIf(parts, Bit(w, 3), "Weight overflow");
+        AddIf(parts, Bit(w, 4), "Negative weight overflow");
+        AddIf(parts, Bit(w, 5), "mV overflow");
+        AddIf(parts, Bit(w, 6), "mV negative overflow");
+
+        // Another binary meaning bit:
+        parts.Add(Bit(w, 7) ? "mV stable" : "mV unstable");
+
+        return string.Join(", ", parts);
+    }
+
+    private static string DecodeOperatingState(ushort w)
+    {
+        // Register 40002 (Operating state)
+        // .0 0: Stop, 1: Run
+        // .1 Before feed
+        // .2 CO-Fill
+        // .3 Fi-Fill
+        // .4 Result Waiting
+        // .5 Over/Under test
+        // .6 DISC
+        // .7 NearZero
+        // .8 FILL
+        // .9 Supplement Empty
+        // .10 Stock-in/out Done
+        // .11 Last Feed
+        // .12 OVER
+        // .13 UNDER
+        // .14 Stop (yes, doc repeats "Stop" as a flag bit)
+        // .15 reserved
+
+        var parts = new List<string>();
+
+        // Binary meaning bit: always show
+        parts.Add(Bit(w, 0) ? "Run" : "Stop");
+
+        // Active-only flags:
+        AddIf(parts, Bit(w, 1), "Before feed");
+        AddIf(parts, Bit(w, 2), "CO-Fill");
+        AddIf(parts, Bit(w, 3), "Fi-Fill");
+        AddIf(parts, Bit(w, 4), "Result waiting");
+        AddIf(parts, Bit(w, 5), "Over/Under test");
+        AddIf(parts, Bit(w, 6), "DISC");
+        AddIf(parts, Bit(w, 7), "NearZero");
+        AddIf(parts, Bit(w, 8), "FILL");
+        AddIf(parts, Bit(w, 9), "Supplement empty");
+        AddIf(parts, Bit(w, 10), "Stock-in/out done");
+        AddIf(parts, Bit(w, 11), "Last feed");
+        AddIf(parts, Bit(w, 12), "OVER");
+        AddIf(parts, Bit(w, 13), "UNDER");
+        AddIf(parts, Bit(w, 14), "Stop flag");
+
+        return string.Join(", ", parts);
+    }
+
+    private static string DecodeConditionState(ushort w)
+    {
+        // Register 40003 (Condition state)
+        // .0 Supplement FULL
+        // .1 Supplement OK
+        // .2 Supplement NotEmpty
+        // .3 DISC Gate Closed Pos
+        // .4 Fill Permission
+        // .5 Cut Material (feed signal)
+        // .6 Clogged(Out)
+        // .7-.15 reserved
+
+        var parts = new List<string>();
+
+        // Active-only bits:
+        AddIf(parts, Bit(w, 0), "Supplement FULL");
+        AddIf(parts, Bit(w, 1), "Supplement OK");
+        AddIf(parts, Bit(w, 2), "Supplement not empty");
+        AddIf(parts, Bit(w, 3), "DISC gate closed");
+        AddIf(parts, Bit(w, 4), "Fill permission");
+        AddIf(parts, Bit(w, 5), "Cut material (feed)");
+        AddIf(parts, Bit(w, 6), "Clogged (out)");
+
+        return parts.Count == 0 ? "OK" : string.Join(", ", parts);
+    }
+
+    private static string DecodeAlarmInfo1(ushort w)
+    {
+        // Register 40004 (Alarm Info 1) - active-only
+        var parts = new List<string>();
+
+        AddIf(parts, Bit(w, 0), "Delivery done alarm");
+        AddIf(parts, Bit(w, 1), "Fail: zero over range");
+        AddIf(parts, Bit(w, 2), "Fail: weight unstable");
+        AddIf(parts, Bit(w, 3), "Fail: process running");
+        AddIf(parts, Bit(w, 4), "Target is 0: unable to start");
+        AddIf(parts, Bit(w, 5), "Over/Under alarm");
+        AddIf(parts, Bit(w, 6), "Weight OFL: unable to start");
+        AddIf(parts, Bit(w, 7), "Continuous flowrate low");
+        AddIf(parts, Bit(w, 8), "Stable judge overtime (scale unstable)");
+        AddIf(parts, Bit(w, 9), "Target error: unable to start");
+        AddIf(parts, Bit(w, 10), "Clear ACUM before next run");
+        AddIf(parts, Bit(w, 11), "Discharge gate not closed");
+        AddIf(parts, Bit(w, 12), "Feeding gate not closed");
+        AddIf(parts, Bit(w, 13), "Feeding gate close overtime");
+        AddIf(parts, Bit(w, 14), "Discharge gate open overtime");
+        AddIf(parts, Bit(w, 15), "Discharge gate close overtime");
+
+        return parts.Count == 0 ? "OK" : string.Join(", ", parts);
+    }
+
+    private static string DecodeAlarmInfo2(ushort w)
+    {
+        // Register 40005 (Alarm Info 2) - active-only
+        var parts = new List<string>();
+
+        AddIf(parts, Bit(w, 0), "Motor parameter error");
+        AddIf(parts, Bit(w, 1), "Calibration fail: unstable");
+        AddIf(parts, Bit(w, 2), "Calibration fail: loadcell input high");
+        AddIf(parts, Bit(w, 3), "Calibration fail: loadcell input low");
+        AddIf(parts, Bit(w, 4), "Calibration fail: unstable (dup)");
+        AddIf(parts, Bit(w, 5), "Calibration fail: weight over");
+        AddIf(parts, Bit(w, 6), "Calibration fail: weight under");
+        AddIf(parts, Bit(w, 7), "Calibration fail: weight value error");
+        AddIf(parts, Bit(w, 8), "Calibration fail: over resolution");
+        AddIf(parts, Bit(w, 9), "Calibration fail: no gain voltage record");
+        AddIf(parts, Bit(w, 10), "Over & Under pause");
+        AddIf(parts, Bit(w, 11), "Fill timeout");
+        AddIf(parts, Bit(w, 12), "Disc timeout");
+        // .13-.15 reserved
+
+        return parts.Count == 0 ? "OK" : string.Join(", ", parts);
+    }
+
+    private static bool Bit(ushort word, int bitIndex)
+        => (word & (1 << bitIndex)) != 0;
+
+    private static void AddIf(List<string> list, bool condition, string label)
+    {
+        if (condition) list.Add(label);
+    }
+
+    private static ushort ToUInt16(decimal d)
+    {
+        // Defensive conversion: your DB stores decimal, but this represents a 16-bit register.
+        // Clamp safely.
+        if (d < 0) return 0;
+        if (d > ushort.MaxValue) return ushort.MaxValue;
+        return (ushort)d;
+    }
+
+    // =========================
+    // Existing helpers
+    // =========================
 
     private static string FormatDecimal(decimal value, int decimals, string unit)
     {
@@ -128,37 +286,7 @@ public sealed class Gm9907L5Profile : IDeviceProfile
     private static int GetInt(IReadOnlyList<LatestReadingSnapshot> list, string key)
     {
         var item = list.FirstOrDefault(x => x.Key == key);
-        if (item?.ValueNumeric is null)
-            return 0;
-
+        if (item?.ValueNumeric is null) return 0;
         return (int)item.ValueNumeric.Value;
-    }
-
-    /// <summary>
-    /// Decodes a UInt16 bitfield into "OK" or "Active: A, B, C"
-    /// </summary>
-    private static string FormatAlarmBits(decimal value, IReadOnlyDictionary<int, string> map)
-    {
-        // Alarm registers are UInt16 in templates, but stored as decimal.
-        // Clamp safely.
-        int bits = (int)Math.Clamp(value, 0m, 65535m);
-
-        if (bits == 0)
-            return "OK";
-
-        var active = new List<string>();
-
-        foreach (var kv in map.OrderBy(k => k.Key))
-        {
-            int bit = kv.Key;
-            bool isSet = (bits & (1 << bit)) != 0;
-
-            if (isSet)
-                active.Add(kv.Value);
-        }
-
-        return active.Count == 0
-            ? $"Active: (unknown bits) [{bits}]"
-            : "Active: " + string.Join(", ", active);
     }
 }

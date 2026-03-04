@@ -44,4 +44,10 @@
     </None>
   </ItemGroup>
 
+	<ItemGroup>
+		<Content Include="Templates\*.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+
 </Project>

@@ -25,9 +25,9 @@ public sealed class PollingHostedService : BackgroundService
 
                 await poller.PollOnceAsync(stoppingToken);
             }
-            catch
+            catch (Exception ex)
             {
-                // MVP: swallow and keep looping (optionally log later)
+                System.Diagnostics.Debug.WriteLine($"Polling error: {ex}");
             }
 
             await Task.Delay(500, stoppingToken); // MVP tick; your PointConfig.PollRateMs controls per point

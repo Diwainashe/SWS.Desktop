@@ -2,6 +2,7 @@
 using SWS.Core.Abstractions;
 using SWS.Core.Models;
 using System.Net.Sockets;
+using SWS.Core.Modbus;
 
 namespace SWS.Modbus;
 
@@ -57,60 +58,97 @@ public sealed class NModbusClient : IModbusClient
     private enum BoolFunction { Coil, DiscreteInput }
 
     private static async Task<ushort[]> ReadRegistersAsync(
-        DeviceConfig device,
-        RegisterFunction fc,
-        ushort startAddress,
-        ushort length,
-        CancellationToken ct)
+    DeviceConfig device,
+    RegisterFunction fc,
+    ushort startAddress,
+    ushort length,
+    CancellationToken ct)
     {
-        using var tcpClient = new TcpClient();
-
-        // If cancellation triggers while connecting, dispose the socket
-        using (ct.Register(() => tcpClient.Dispose()))
+        try
         {
-            await tcpClient.ConnectAsync(device.IpAddress, device.Port);
-        }
+            using var tcpClient = new TcpClient();
 
-        var factory = new ModbusFactory();
-        var master = factory.CreateMaster(tcpClient);
-
-        // NModbus calls are sync; wrap in Task.Run to avoid blocking UI threads
-        return await Task.Run(() =>
-        {
-            return fc switch
+            using (ct.Register(() => tcpClient.Dispose()))
             {
-                RegisterFunction.Holding => master.ReadHoldingRegisters(device.UnitId, startAddress, length),
-                RegisterFunction.Input => master.ReadInputRegisters(device.UnitId, startAddress, length),
-                _ => Array.Empty<ushort>()
-            };
-        }, ct);
+                await tcpClient.ConnectAsync(device.IpAddress, device.Port);
+            }
+
+            var factory = new ModbusFactory();
+            var master = factory.CreateMaster(tcpClient);
+
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    return fc switch
+                    {
+                        RegisterFunction.Holding => master.ReadHoldingRegisters(device.UnitId, startAddress, length),
+                        RegisterFunction.Input => master.ReadInputRegisters(device.UnitId, startAddress, length),
+                        _ => Array.Empty<ushort>()
+                    };
+                }
+                catch (NModbus.SlaveException)
+                {
+                    // Illegal address / illegal function / etc.
+                    return Array.Empty<ushort>();
+                }
+            }, ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch
+        {
+            // Socket errors, timeouts, etc.
+            return Array.Empty<ushort>();
+        }
     }
 
     private static async Task<bool[]> ReadBoolsAsync(
-        DeviceConfig device,
-        BoolFunction boolType,
-        ushort startAddress,
-        ushort length,
-        CancellationToken ct)
+    DeviceConfig device,
+    BoolFunction boolType,
+    ushort startAddress,
+    ushort length,
+    CancellationToken ct)
     {
-        using var tcpClient = new TcpClient();
-
-        using (ct.Register(() => tcpClient.Dispose()))
+        try
         {
-            await tcpClient.ConnectAsync(device.IpAddress, device.Port);
-        }
+            if (length == 0) length = 1;
 
-        var factory = new ModbusFactory();
-        var master = factory.CreateMaster(tcpClient);
+            using var tcpClient = new TcpClient();
 
-        return await Task.Run(() =>
-        {
-            return boolType switch
+            using (ct.Register(() => tcpClient.Dispose()))
             {
-                BoolFunction.Coil => master.ReadCoils(device.UnitId, startAddress, length),
-                BoolFunction.DiscreteInput => master.ReadInputs(device.UnitId, startAddress, length),
-                _ => Array.Empty<bool>()
-            };
-        }, ct);
+                await tcpClient.ConnectAsync(device.IpAddress, device.Port);
+            }
+
+            var factory = new ModbusFactory();
+            var master = factory.CreateMaster(tcpClient);
+
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    return boolType switch
+                    {
+                        BoolFunction.Coil => master.ReadCoils(device.UnitId, startAddress, length),
+                        BoolFunction.DiscreteInput => master.ReadInputs(device.UnitId, startAddress, length),
+                        _ => Array.Empty<bool>()
+                    };
+                }
+                catch (NModbus.SlaveException)
+                {
+                    // Illegal address/function/etc.
+                    return Array.Empty<bool>();
+                }
+                catch
+                {
+                    return Array.Empty<bool>();
+                }
+            }, ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch
+        {
+            return Array.Empty<bool>();
+        }
     }
 }

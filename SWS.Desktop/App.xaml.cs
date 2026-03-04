@@ -60,6 +60,12 @@ public partial class App : Application
                 services.AddHostedService<PollingHostedService>();
                 services.AddSingleton<SWS.Desktop.Services.LatestReadingsBus>();
                 services.AddSingleton<SWS.Core.Services.ILatestReadingsBus>(sp => sp.GetRequiredService<SWS.Desktop.Services.LatestReadingsBus>());
+                services.AddSingleton<SWS.Core.Services.IGm9907L5BitfieldDecoder, SWS.Core.Services.Gm9907L5BitfieldDecoder>();
+                services.AddSingleton<Gm9907L5DiagnosticsService>();
+                // Templates + JSON driven decoding
+                services.AddSingleton<SWS.Desktop.Templates.DeviceTemplateStore>();
+                services.AddSingleton<SWS.Desktop.Services.BitfieldDecoder>();
+                services.AddSingleton<SWS.Desktop.Services.TemplateDiagnosticsService>();
 
                 // Profiles (device-specific templates + formatting)
                 // register individual profiles

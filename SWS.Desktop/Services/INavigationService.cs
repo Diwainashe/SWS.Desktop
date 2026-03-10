@@ -4,6 +4,7 @@ public interface INavigationService
 {
     object? CurrentView { get; }
     Task NavigateToAsync(AppPageKey key);
+    Task NavigateToDeviceAsync(int deviceId, string deviceName, SWS.Core.Models.DeviceType deviceType);
 }
 
 public enum AppPageKey
@@ -11,5 +12,6 @@ public enum AppPageKey
     Dashboard,
     Devices,
     Points,
-    Settings
+    Settings,
+    DeviceDetail
 }

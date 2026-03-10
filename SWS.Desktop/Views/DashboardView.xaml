@@ -7,84 +7,122 @@
             <RowDefinition Height="Auto"/>
             <!-- Header -->
             <RowDefinition Height="Auto"/>
+            <!-- Device buttons -->
+            <RowDefinition Height="Auto"/>
             <!-- Diagnostics -->
             <RowDefinition Height="*"/>
             <!-- DataGrid -->
         </Grid.RowDefinitions>
 
         <!-- HEADER -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal">
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
             <TextBlock Text="Live Readings" FontSize="18" FontWeight="SemiBold" Margin="0,0,16,0"/>
             <Button Content="Refresh" Padding="10,4" Command="{Binding RefreshCommand}" Margin="0,0,8,0"/>
             <Button Content="Auto" Padding="10,4" Command="{Binding ToggleAutoRefreshCommand}" Margin="0,0,8,0"/>
             <TextBlock Text="{Binding Status}" VerticalAlignment="Center" Opacity="0.8"/>
         </StackPanel>
 
+        <!-- DEVICE BUTTONS -->
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding DeviceGroups}" Margin="0,0,0,12">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource CardBorder}" Padding="14,10" Margin="0,0,10,0" MinWidth="180">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding DeviceName}"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource App.TextBrush}"/>
+                                <TextBlock Text="{Binding DeviceType}"
+                                           FontSize="10"
+                                           Foreground="{StaticResource App.MutedTextBrush}"
+                                           Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Content="Detail →"
+                                    Padding="10,4"
+                                    Margin="10,0,0,0"
+                                    Command="{Binding DataContext.ViewDeviceDetailCommand,
+                                              RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}"/>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
         <!-- DIAGNOSTICS -->
-        <GroupBox Header="Diagnostics" Margin="0,12,0,0" Grid.Row="1">
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <Grid Margin="8">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+        <GroupBox Header="Diagnostics" Margin="0,0,0,12" Grid.Row="2">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Grid Margin="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
 
-            <!-- Alarms -->
-            <StackPanel Grid.Column="0">
-                <TextBlock Text="Active Alarms" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                <ItemsControl ItemsSource="{Binding Diagnostics.AlarmGroups}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Margin="0,0,0,10">
-                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Opacity="0.9"/>
-                                <ItemsControl ItemsSource="{Binding Items}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
+                    <!-- Alarms -->
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Active Alarms" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                        <ItemsControl ItemsSource="{Binding Diagnostics.AlarmGroups}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,0,0,10">
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Opacity="0.9"/>
+                                        <ItemsControl ItemsSource="{Binding Items}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
                                                     <TextBlock TextWrapping="Wrap">
                                                         <Run Text="• "/>
                                                         <Run Text="{Binding Path=.}"/>
                                                     </TextBlock>
                                                 </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
 
-            <!-- States -->
-            <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                <TextBlock Text="Active States" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                <ItemsControl ItemsSource="{Binding Diagnostics.StateGroups}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Margin="0,0,0,10">
-                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Opacity="0.9"/>
-                                <ItemsControl ItemsSource="{Binding Items}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
+                    <!-- States -->
+                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                        <TextBlock Text="Active States" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                        <ItemsControl ItemsSource="{Binding Diagnostics.StateGroups}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,0,0,10">
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Opacity="0.9"/>
+                                        <ItemsControl ItemsSource="{Binding Items}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
                                                     <TextBlock TextWrapping="Wrap">
                                                         <Run Text="• "/>
                                                         <Run Text="{Binding Path=.}"/>
                                                     </TextBlock>
                                                 </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-        </Grid>
-    </ScrollViewer>
-</GroupBox>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Grid>
+            </ScrollViewer>
+        </GroupBox>
 
         <!-- DATA GRID -->
-        <Border Grid.Row="2"
+        <Border Grid.Row="3"
                 Style="{StaticResource CardBorder}"
                 Padding="0">
-
             <DataGrid
                 ItemsSource="{Binding Rows}"
                 AutoGenerateColumns="False"
@@ -92,16 +130,14 @@
                 VerticalScrollBarVisibility="Auto"
                 HorizontalScrollBarVisibility="Auto"
                 EnableRowVirtualization="True">
-
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="160"/>
-                    <DataGridTextColumn Header="Label" Binding="{Binding Label}" Width="160"/>
-                    <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="220"/>
-                    <DataGridTextColumn Header="Value" Binding="{Binding DisplayValue}" Width="140"/>
-                    <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="100"/>
+                    <DataGridTextColumn Header="Device"           Binding="{Binding DeviceName}"    Width="160"/>
+                    <DataGridTextColumn Header="Label"            Binding="{Binding Label}"          Width="160"/>
+                    <DataGridTextColumn Header="Key"              Binding="{Binding Key}"             Width="220"/>
+                    <DataGridTextColumn Header="Value"            Binding="{Binding DisplayValue}"   Width="140"/>
+                    <DataGridTextColumn Header="Quality"          Binding="{Binding Quality}"         Width="100"/>
                     <DataGridTextColumn Header="Timestamp (Local)" Binding="{Binding TimestampLocal}" Width="180"/>
                 </DataGrid.Columns>
-
             </DataGrid>
         </Border>
 

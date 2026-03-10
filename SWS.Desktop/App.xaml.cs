@@ -85,11 +85,13 @@ public partial class App : Application
                 services.AddTransient<DevicesViewModel>();
                 services.AddTransient<PointsViewModel>();
                 services.AddTransient<SettingsViewModel>();
+                services.AddTransient<DeviceDetailViewModel>();
 
                 services.AddTransient<DashboardView>();
                 services.AddTransient<DevicesView>();
                 services.AddTransient<PointsView>();
                 services.AddTransient<SettingsView>();
+                services.AddTransient<DeviceDetailView>();
 
                 // Add later when you create it:
                 // services.AddTransient<ConfigViewModel>();

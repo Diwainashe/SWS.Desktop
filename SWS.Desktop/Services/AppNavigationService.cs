@@ -1,5 +1,8 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
+using SWS.Core.Models;
+using SWS.Desktop.ViewModels;
+using SWS.Desktop.Views;
 
 namespace SWS.Desktop.Services;
 
@@ -23,12 +26,11 @@ public sealed partial class AppNavigationService : ObservableObject, INavigation
 
     private readonly Dictionary<AppPageKey, Type> _routes = new()
     {
-        { AppPageKey.Dashboard, typeof(Views.DashboardView) },
-        { AppPageKey.Devices,   typeof(Views.DevicesView) },
-        { AppPageKey.Points,    typeof(Views.PointsView) },
-        { AppPageKey.Settings,    typeof(Views.SettingsView) },
-        // Add later when you have it:
-        // { AppPageKey.Config, typeof(Views.ConfigView) }
+        { AppPageKey.Dashboard,    typeof(DashboardView) },
+        { AppPageKey.Devices,      typeof(DevicesView) },
+        { AppPageKey.Points,       typeof(PointsView) },
+        { AppPageKey.Settings,     typeof(SettingsView) },
+        { AppPageKey.DeviceDetail, typeof(DeviceDetailView) },
     };
 
     public AppNavigationService(IServiceProvider root) => _root = root;
@@ -45,6 +47,24 @@ public sealed partial class AppNavigationService : ObservableObject, INavigation
         // Resolve the view *inside the scope* so it can safely use scoped services
         CurrentView = _currentScope.ServiceProvider.GetRequiredService(viewType);
 
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Navigate to device detail, seeding the VM with the device context.
+    /// </summary>
+    public Task NavigateToDeviceAsync(int deviceId, string deviceName, DeviceType deviceType)
+    {
+        _currentScope?.Dispose();
+        _currentScope = _root.CreateScope();
+
+        var view = _currentScope.ServiceProvider.GetRequiredService<DeviceDetailView>();
+
+        // Seed the VM — it's already resolved and wired as DataContext by the view ctor
+        if (view.DataContext is DeviceDetailViewModel vm)
+            vm.SetDevice(deviceId, deviceName, deviceType);
+
+        CurrentView = view;
         return Task.CompletedTask;
     }
 }

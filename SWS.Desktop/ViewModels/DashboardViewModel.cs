@@ -14,16 +14,19 @@ namespace SWS.Desktop.ViewModels;
 /// - pulls latest readings from DB
 /// - formats display via device profiles
 /// - auto-refreshes when the poller publishes LatestUpdated
+/// - exposes per-device groups for "View Detail" navigation
 /// </summary>
 public partial class DashboardViewModel : ObservableObject, IDisposable
 {
     private readonly ConfigDataService _data;
     private readonly DeviceProfileRegistry _profiles;
-    private readonly LatestReadingsBus _bus;   // ✅ store it so we can unsubscribe
+    private readonly LatestReadingsBus _bus;
     private readonly Gm9907L5DiagnosticsService _gmDiag;
     private readonly TemplateDiagnosticsService _templateDiag;
+    private readonly INavigationService _nav;
 
     public ObservableCollection<LiveRowVm> Rows { get; } = new();
+    public ObservableCollection<DeviceGroupVm> DeviceGroups { get; } = new();
 
     [ObservableProperty] private string _status = "Ready.";
     [ObservableProperty] private bool _autoRefresh = true;
@@ -36,12 +39,14 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         DeviceProfileRegistry profiles,
         LatestReadingsBus bus,
         Gm9907L5DiagnosticsService gmDiag,
-        TemplateDiagnosticsService templateDiag)
+        TemplateDiagnosticsService templateDiag,
+        INavigationService nav)
     {
         _data = data;
         _profiles = profiles;
-        _bus = bus; // ✅ fixes CS8618 warning
+        _bus = bus;
         _gmDiag = gmDiag;
+        _nav = nav;
         _bus.LatestUpdated += OnLatestUpdated;
         _ = RefreshAsync();
         _templateDiag = templateDiag;
@@ -52,7 +57,6 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         if (!AutoRefresh)
             return;
 
-        // Ensure UI updates happen on UI thread
         Application.Current.Dispatcher.InvokeAsync(async () =>
         {
             try
@@ -70,7 +74,21 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     private async Task RefreshAsync()
     {
         var list = await _data.GetLatestReadingsAsync(CancellationToken.None);
-        // Pick the first GM device's context (same behaviour you already had)
+
+        // Build device groups (for the "View Detail" buttons)
+        DeviceGroups.Clear();
+        foreach (var dg in list.GroupBy(x => x.DeviceId))
+        {
+            var first = dg.First();
+            DeviceGroups.Add(new DeviceGroupVm
+            {
+                DeviceId = first.DeviceId,
+                DeviceName = first.DeviceName,
+                DeviceType = first.DeviceType
+            });
+        }
+
+        // Pick the first GM device's context for dashboard diagnostics
         var gmRows = list
             .Where(x => x.DeviceType == DeviceType.GM9907_L5)
             .GroupBy(x => x.DeviceId)
@@ -122,9 +140,12 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         Status = AutoRefresh ? "Auto ON" : "Auto OFF";
     }
 
-    /// <summary>
-    /// Prevent event handler leaks when VM is discarded.
-    /// </summary>
+    [RelayCommand]
+    private async Task ViewDeviceDetailAsync(DeviceGroupVm group)
+    {
+        await _nav.NavigateToDeviceAsync(group.DeviceId, group.DeviceName, group.DeviceType);
+    }
+
     public void Dispose()
     {
         _bus.LatestUpdated -= OnLatestUpdated;
@@ -139,4 +160,11 @@ public sealed class LiveRowVm
     public string DisplayValue { get; set; } = "";
     public string Quality { get; set; } = "";
     public DateTime TimestampLocal { get; set; }
+}
+
+public sealed class DeviceGroupVm
+{
+    public int DeviceId { get; set; }
+    public string DeviceName { get; set; } = "";
+    public DeviceType DeviceType { get; set; }
 }

@@ -2,246 +2,499 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <Grid Margin="16">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <!-- header bar -->
-            <RowDefinition Height="Auto"/>
-            <!-- summary cards -->
-            <RowDefinition Height="Auto"/>
-            <!-- diagnostics -->
-            <RowDefinition Height="*"/>
-            <!-- point list -->
-        </Grid.RowDefinitions>
+    <!-- ── Shared inline resources ── -->
+    <UserControl.Resources>
 
-        <!-- ══════════════════════════════════════════════════════════
-             HEADER BAR
-             ══════════════════════════════════════════════════════════ -->
-        <Grid Grid.Row="0" Margin="0,0,0,12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+        <!-- Section card -->
+        <Style x:Key="SectionCard" TargetType="Border" BasedOn="{StaticResource CardBorder}">
+            <Setter Property="Padding"     Value="16,14"/>
+            <Setter Property="Margin"      Value="0,0,0,10"/>
+        </Style>
 
-            <Button Grid.Column="0"
-                    Content="← Back"
-                    Padding="12,5"
-                    Command="{Binding GoBackCommand}"/>
+        <!-- Section title -->
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource App.MutedTextBrush}"/>
+            <Setter Property="Margin"     Value="0,0,0,10"/>
+        </Style>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
-                <TextBlock Text="{Binding DeviceName}"
-                           FontSize="18" FontWeight="SemiBold"
-                           Foreground="{StaticResource App.TextBrush}"/>
-                <Border Margin="12,0,0,0" Padding="8,3" CornerRadius="4"
-                        VerticalAlignment="Center">
-                    <Border.Background>
-                        <SolidColorBrush Color="{Binding RunStateColor}"/>
-                    </Border.Background>
-                    <TextBlock Text="{Binding RunStateDisplay}"
-                               FontSize="11" FontWeight="SemiBold"
-                               Foreground="White"/>
-                </Border>
-            </StackPanel>
+        <!-- Detail row label -->
+        <Style x:Key="RowLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource App.MutedTextBrush}"/>
+            <Setter Property="FontSize"   Value="12"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
 
-            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="{Binding Status}"
-                           VerticalAlignment="Center"
-                           Opacity="0.6" FontSize="11"
-                           Margin="0,0,12,0"/>
-                <Button Content="Refresh"
-                        Padding="10,5"
-                        Command="{Binding RefreshCommand}"/>
-            </StackPanel>
-        </Grid>
+        <!-- Detail row value -->
+        <Style x:Key="RowValue" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource App.TextBrush}"/>
+            <Setter Property="FontSize"   Value="12"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
 
-        <!-- ══════════════════════════════════════════════════════════
-             SUMMARY CARDS
-             ══════════════════════════════════════════════════════════ -->
-        <UniformGrid Grid.Row="1" Rows="1" Margin="0,0,0,12">
+        <!-- Summary card label -->
+        <Style x:Key="CardLabel" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource App.MutedTextBrush}"/>
+            <Setter Property="Margin"     Value="0,0,0,4"/>
+        </Style>
 
-            <!-- Weight Card -->
-            <Border Style="{StaticResource CardBorder}" Margin="0,0,8,0" Padding="16,12">
-                <StackPanel>
-                    <TextBlock Text="WEIGHT"
-                               FontSize="10" FontWeight="Bold"
-                               Foreground="{StaticResource App.MutedTextBrush}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="{Binding WeightDisplay}"
-                               FontSize="26" FontWeight="Light"
+        <!-- Summary card value -->
+        <Style x:Key="CardValue" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="24"/>
+            <Setter Property="FontWeight" Value="Light"/>
+            <Setter Property="Foreground" Value="{StaticResource App.TextBrush}"/>
+        </Style>
+
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <!-- Header bar -->
+                <RowDefinition Height="Auto"/>
+                <!-- Summary cards -->
+                <RowDefinition Height="Auto"/>
+                <!-- Diagnostics -->
+                <RowDefinition Height="Auto"/>
+                <!-- Body sections -->
+                <RowDefinition Height="Auto"/>
+                <!-- All Points -->
+            </Grid.RowDefinitions>
+
+            <!-- ═══════════════════════════════════════════════════════
+                 HEADER BAR
+                 ═══════════════════════════════════════════════════════ -->
+            <Grid Grid.Row="0" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0" Content="← Back" Padding="12,5"
+                        Command="{Binding GoBackCommand}"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            Margin="16,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding DeviceName}"
+                               FontSize="18" FontWeight="SemiBold"
                                Foreground="{StaticResource App.TextBrush}"/>
+                    <Border Margin="12,0,0,0" Padding="8,3" CornerRadius="4"
+                            VerticalAlignment="Center">
+                        <Border.Background>
+                            <SolidColorBrush Color="{Binding RunStateColor}"/>
+                        </Border.Background>
+                        <TextBlock Text="{Binding RunStateDisplay}"
+                                   FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                    </Border>
                 </StackPanel>
-            </Border>
 
-            <!-- Flowrate Card -->
-            <Border Style="{StaticResource CardBorder}" Margin="4,0,4,0" Padding="16,12">
-                <StackPanel>
-                    <TextBlock Text="FLOWRATE"
-                               FontSize="10" FontWeight="Bold"
-                               Foreground="{StaticResource App.MutedTextBrush}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="{Binding FlowrateDisplay}"
-                               FontSize="26" FontWeight="Light"
-                               Foreground="{StaticResource App.TextBrush}"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Status}" VerticalAlignment="Center"
+                               Opacity="0.5" FontSize="11" Margin="0,0,12,0"/>
+                    <Button Content="Refresh" Padding="10,5"
+                            Command="{Binding RefreshCommand}"/>
                 </StackPanel>
-            </Border>
-
-            <!-- Recipe Card -->
-            <Border Style="{StaticResource CardBorder}" Margin="4,0,4,0" Padding="16,12">
-                <StackPanel>
-                    <TextBlock Text="RECIPE"
-                               FontSize="10" FontWeight="Bold"
-                               Foreground="{StaticResource App.MutedTextBrush}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="{Binding RecipeDisplay}"
-                               FontSize="26" FontWeight="Light"
-                               Foreground="{StaticResource App.TextBrush}"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Alarm Status Card -->
-            <Border Style="{StaticResource CardBorder}" Margin="8,0,0,0" Padding="16,12">
-                <StackPanel>
-                    <TextBlock Text="ALARM STATUS"
-                               FontSize="10" FontWeight="Bold"
-                               Foreground="{StaticResource App.MutedTextBrush}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock FontSize="26" FontWeight="Light">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Text" Value="OK"/>
-                                <Setter Property="Foreground" Value="#2ECC71"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding HasAlarms}" Value="True">
-                                        <Setter Property="Text" Value="ALARM"/>
-                                        <Setter Property="Foreground" Value="#FF4444"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                </StackPanel>
-            </Border>
-
-        </UniformGrid>
-
-        <!-- ══════════════════════════════════════════════════════════
-             DIAGNOSTICS PANEL
-             ══════════════════════════════════════════════════════════ -->
-        <Border Grid.Row="2"
-                Style="{StaticResource CardBorder}"
-                Padding="16,12" Margin="0,0,0,12">
-            <Expander Header="Diagnostics" IsExpanded="True">
-                <Grid Margin="0,12,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Alarms -->
-                    <StackPanel Grid.Column="0">
-                        <TextBlock Text="Active Alarms"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource App.MutedTextBrush}"
-                                   FontSize="11"
-                                   Margin="0,0,0,8"/>
-                        <ItemsControl ItemsSource="{Binding Diagnostics.AlarmGroups}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Margin="0,0,0,10">
-                                        <TextBlock Text="{Binding Title}"
-                                                   FontWeight="SemiBold" FontSize="12"
-                                                   Foreground="{StaticResource App.TextBrush}"/>
-                                        <ItemsControl ItemsSource="{Binding Items}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock TextWrapping="Wrap" Margin="0,2,0,0"
-                                                               Foreground="{StaticResource App.MutedTextBrush}"
-                                                               FontSize="12">
-                                                        <Run Text="• "/>
-                                                        <Run Text="{Binding Path=.}"/>
-                                                    </TextBlock>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-
-                    <!-- States -->
-                    <StackPanel Grid.Column="1" Margin="16,0,0,0">
-                        <TextBlock Text="Active States"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource App.MutedTextBrush}"
-                                   FontSize="11"
-                                   Margin="0,0,0,8"/>
-                        <ItemsControl ItemsSource="{Binding Diagnostics.StateGroups}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Margin="0,0,0,10">
-                                        <TextBlock Text="{Binding Title}"
-                                                   FontWeight="SemiBold" FontSize="12"
-                                                   Foreground="{StaticResource App.TextBrush}"/>
-                                        <ItemsControl ItemsSource="{Binding Items}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock TextWrapping="Wrap" Margin="0,2,0,0"
-                                                               Foreground="{StaticResource App.MutedTextBrush}"
-                                                               FontSize="12">
-                                                        <Run Text="• "/>
-                                                        <Run Text="{Binding Path=.}"/>
-                                                    </TextBlock>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-
-                </Grid>
-            </Expander>
-        </Border>
-
-        <!-- ══════════════════════════════════════════════════════════
-             POINT LIST
-             ══════════════════════════════════════════════════════════ -->
-        <Border Grid.Row="3"
-                Style="{StaticResource CardBorder}"
-                Padding="0">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0"
-                           Text="All Points"
-                           FontWeight="SemiBold"
-                           FontSize="12"
-                           Foreground="{StaticResource App.MutedTextBrush}"
-                           Margin="12,10,0,8"/>
-
-                <DataGrid Grid.Row="1"
-                          ItemsSource="{Binding Rows}"
-                          AutoGenerateColumns="False"
-                          IsReadOnly="True"
-                          VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Auto"
-                          EnableRowVirtualization="True">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Label"     Binding="{Binding Label}"        Width="180"/>
-                        <DataGridTextColumn Header="Key"       Binding="{Binding Key}"           Width="220"/>
-                        <DataGridTextColumn Header="Value"     Binding="{Binding DisplayValue}"  Width="160"/>
-                        <DataGridTextColumn Header="Quality"   Binding="{Binding Quality}"       Width="90"/>
-                        <DataGridTextColumn Header="Timestamp" Binding="{Binding TimestampLocal}" Width="180"/>
-                    </DataGrid.Columns>
-                </DataGrid>
             </Grid>
-        </Border>
 
-    </Grid>
+            <!-- ═══════════════════════════════════════════════════════
+                 SUMMARY CARDS
+                 ═══════════════════════════════════════════════════════ -->
+            <UniformGrid Grid.Row="1" Rows="1" Margin="0,0,0,10">
+
+                <Border Style="{StaticResource SectionCard}" Margin="0,0,6,0">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource CardLabel}" Text="WEIGHT"/>
+                        <TextBlock Style="{StaticResource CardValue}" Text="{Binding WeightDisplay}"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}" Margin="3,0,3,0">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource CardLabel}" Text="FLOWRATE"/>
+                        <TextBlock Style="{StaticResource CardValue}" Text="{Binding FlowrateDisplay}"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}" Margin="3,0,3,0">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource CardLabel}" Text="RECIPE"/>
+                        <TextBlock Style="{StaticResource CardValue}" Text="{Binding RecipeDisplay}"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource SectionCard}" Margin="6,0,0,0">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource CardLabel}" Text="ALARM STATUS"/>
+                        <TextBlock>
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource CardValue}">
+                                    <Setter Property="Text"       Value="OK"/>
+                                    <Setter Property="Foreground" Value="#2ECC71"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasAlarms}" Value="True">
+                                            <Setter Property="Text"       Value="ALARM"/>
+                                            <Setter Property="Foreground" Value="#FF4444"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+            </UniformGrid>
+
+            <!-- ═══════════════════════════════════════════════════════
+                 DIAGNOSTICS (collapsible)
+                 ═══════════════════════════════════════════════════════ -->
+            <Border Grid.Row="2" Style="{StaticResource SectionCard}">
+                <Expander Header="Diagnostics" IsExpanded="True">
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Style="{StaticResource SectionTitle}" Text="ACTIVE ALARMS"/>
+                            <ItemsControl ItemsSource="{Binding Diagnostics.AlarmGroups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,0,8">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"
+                                                       Foreground="{StaticResource App.TextBrush}"/>
+                                            <ItemsControl ItemsSource="{Binding Items}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Margin="0,2,0,0" TextWrapping="Wrap"
+                                                                   FontSize="12"
+                                                                   Foreground="{StaticResource App.MutedTextBrush}">
+                                                            <Run Text="• "/><Run Text="{Binding Path=.}"/>
+                                                        </TextBlock>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                            <TextBlock Style="{StaticResource SectionTitle}" Text="ACTIVE STATES"/>
+                            <ItemsControl ItemsSource="{Binding Diagnostics.StateGroups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,0,8">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"
+                                                       Foreground="{StaticResource App.TextBrush}"/>
+                                            <ItemsControl ItemsSource="{Binding Items}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Margin="0,2,0,0" TextWrapping="Wrap"
+                                                                   FontSize="12"
+                                                                   Foreground="{StaticResource App.MutedTextBrush}">
+                                                            <Run Text="• "/><Run Text="{Binding Path=.}"/>
+                                                        </TextBlock>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Grid>
+                </Expander>
+            </Border>
+
+            <!-- ═══════════════════════════════════════════════════════
+                 BODY SECTIONS  (2-column layout)
+                 ═══════════════════════════════════════════════════════ -->
+            <Grid Grid.Row="3" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left column: Process + Recipe -->
+                <StackPanel Grid.Column="0">
+
+                    <!-- Process -->
+                    <Border Style="{StaticResource SectionCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionTitle}"
+                                       Text="{Binding ProcessSection.Title}"/>
+                            <ItemsControl ItemsSource="{Binding ProcessSection.Rows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,3,0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="140"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Style="{StaticResource RowLabel}"
+                                                       Grid.Column="0" Text="{Binding Label}"/>
+                                            <TextBlock Style="{StaticResource RowValue}"
+                                                       Grid.Column="1" Text="{Binding Value}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Active Recipe -->
+                    <Border Style="{StaticResource SectionCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionTitle}"
+                                       Text="{Binding RecipeSection.Title}"/>
+                            <ItemsControl ItemsSource="{Binding RecipeSection.Rows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,3,0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="140"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Style="{StaticResource RowLabel}"
+                                                       Grid.Column="0" Text="{Binding Label}"/>
+                                            <TextBlock Style="{StaticResource RowValue}"
+                                                       Grid.Column="1" Text="{Binding Value}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+
+                <!-- Right column: Accumulation + I/O + Device Info -->
+                <StackPanel Grid.Column="2">
+
+                    <!-- Accumulation -->
+                    <Border Style="{StaticResource SectionCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionTitle}"
+                                       Text="{Binding AccumSection.Title}"/>
+                            <ItemsControl ItemsSource="{Binding AccumSection.Rows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,3,0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="140"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Style="{StaticResource RowLabel}"
+                                                       Grid.Column="0" Text="{Binding Label}"/>
+                                            <TextBlock Style="{StaticResource RowValue}"
+                                                       Grid.Column="1" Text="{Binding Value}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Digital Inputs -->
+                    <Border Style="{StaticResource SectionCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionTitle}"
+                                       Text="{Binding InputsSection.Title}"/>
+                            <ItemsControl ItemsSource="{Binding InputsSection.Tiles}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Width="58" Height="44" Margin="3"
+                                                CornerRadius="4">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#0C1626"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                    <Setter Property="BorderBrush"
+                                                            Value="{StaticResource App.BorderBrush}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsOn}" Value="True">
+                                                            <Setter Property="Background" Value="#0D2B1A"/>
+                                                            <Setter Property="BorderBrush" Value="#2ECC71"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel VerticalAlignment="Center"
+                                                        HorizontalAlignment="Center">
+                                                <TextBlock Text="{Binding Label}"
+                                                           FontSize="10" FontWeight="SemiBold"
+                                                           HorizontalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground"
+                                                                    Value="{StaticResource App.MutedTextBrush}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsOn}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#2ECC71"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <Ellipse Width="6" Height="6" Margin="0,4,0,0"
+                                                         HorizontalAlignment="Center">
+                                                    <Ellipse.Style>
+                                                        <Style TargetType="Ellipse">
+                                                            <Setter Property="Fill" Value="#2A3A55"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsOn}" Value="True">
+                                                                    <Setter Property="Fill" Value="#2ECC71"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Ellipse.Style>
+                                                </Ellipse>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Digital Outputs -->
+                    <Border Style="{StaticResource SectionCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionTitle}"
+                                       Text="{Binding OutputsSection.Title}"/>
+                            <ItemsControl ItemsSource="{Binding OutputsSection.Tiles}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Width="58" Height="44" Margin="3" CornerRadius="4">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#0C1626"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                    <Setter Property="BorderBrush"
+                                                            Value="{StaticResource App.BorderBrush}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsOn}" Value="True">
+                                                            <Setter Property="Background" Value="#1A1A0A"/>
+                                                            <Setter Property="BorderBrush" Value="#F39C12"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel VerticalAlignment="Center"
+                                                        HorizontalAlignment="Center">
+                                                <TextBlock Text="{Binding Label}"
+                                                           FontSize="10" FontWeight="SemiBold"
+                                                           HorizontalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground"
+                                                                    Value="{StaticResource App.MutedTextBrush}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsOn}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#F39C12"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <Ellipse Width="6" Height="6" Margin="0,4,0,0"
+                                                         HorizontalAlignment="Center">
+                                                    <Ellipse.Style>
+                                                        <Style TargetType="Ellipse">
+                                                            <Setter Property="Fill" Value="#2A3A55"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsOn}" Value="True">
+                                                                    <Setter Property="Fill" Value="#F39C12"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Ellipse.Style>
+                                                </Ellipse>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Device Info -->
+                    <Border Style="{StaticResource SectionCard}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionTitle}"
+                                       Text="{Binding DeviceInfoSection.Title}"/>
+                            <ItemsControl ItemsSource="{Binding DeviceInfoSection.Rows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,3,0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="120"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Style="{StaticResource RowLabel}"
+                                                       Grid.Column="0" Text="{Binding Label}"/>
+                                            <TextBlock Style="{StaticResource RowValue}"
+                                                       Grid.Column="1" Text="{Binding Value}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </Grid>
+
+            <!-- ═══════════════════════════════════════════════════════
+                 ALL POINTS  (full raw table, collapsed by default)
+                 ═══════════════════════════════════════════════════════ -->
+            <Border Grid.Row="4" Style="{StaticResource SectionCard}" Padding="0">
+                <Expander IsExpanded="False">
+                    <Expander.Header>
+                        <TextBlock Text="All Points (raw)" FontSize="12"
+                                   Foreground="{StaticResource App.MutedTextBrush}"
+                                   Margin="4,0,0,0"/>
+                    </Expander.Header>
+                    <DataGrid ItemsSource="{Binding Rows}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Auto"
+                              EnableRowVirtualization="True"
+                              MaxHeight="400"
+                              Margin="0,8,0,0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Label"     Binding="{Binding Label}"         Width="180"/>
+                            <DataGridTextColumn Header="Key"       Binding="{Binding Key}"            Width="220"/>
+                            <DataGridTextColumn Header="Value"     Binding="{Binding DisplayValue}"   Width="160"/>
+                            <DataGridTextColumn Header="Quality"   Binding="{Binding Quality}"        Width="90"/>
+                            <DataGridTextColumn Header="Timestamp" Binding="{Binding TimestampLocal}" Width="180"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Expander>
+            </Border>
+
+        </Grid>
+    </ScrollViewer>
 </UserControl>

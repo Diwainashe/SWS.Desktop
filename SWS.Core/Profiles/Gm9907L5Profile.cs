@@ -73,7 +73,10 @@ public sealed class Gm9907L5Profile : IDeviceProfile
                         _ => ""
                     };
 
-                    return FormatDecimal(value.Value, decimals, unit);
+                    // PLC stores flowrate as integer with implied decimal point.
+                    // e.g. raw=125, decimals=2 -> actual value = 1.25
+                    decimal scaledFlow = ScaleByDecimal(value.Value, decimals);
+                    return FormatDecimal(scaledFlow, decimals, unit);
                 }
 
             case "Weight.Display":
@@ -90,7 +93,14 @@ public sealed class Gm9907L5Profile : IDeviceProfile
                         _ => ""
                     };
 
-                    return FormatDecimal(value.Value, decimals, unit);
+                    // OFL sentinel: 0xFFFFFFFF read as signed Int32 = -1
+                    if (value.Value == -1m)
+                        return "OFL";
+
+                    // PLC stores weight as integer with implied decimal point.
+                    // e.g. raw=31100, decimals=2 -> actual value = 311.00
+                    decimal scaledWeight = ScaleByDecimal(value.Value, decimals);
+                    return FormatDecimal(scaledWeight, decimals, unit);
                 }
 
             default:
@@ -281,6 +291,18 @@ public sealed class Gm9907L5Profile : IDeviceProfile
 
         string num = Math.Round(value, decimals).ToString($"F{decimals}");
         return string.IsNullOrWhiteSpace(unit) ? num : $"{num} {unit}";
+    }
+
+    /// <summary>
+    /// Converts a PLC integer-encoded value to its real decimal value.
+    /// The PLC stores e.g. 31100 to represent 311.00 when decimals=2.
+    /// Divide by 10^decimals to get the actual engineering value.
+    /// </summary>
+    private static decimal ScaleByDecimal(decimal raw, int decimals)
+    {
+        if (decimals <= 0) return raw;
+        if (decimals > 6) decimals = 6;
+        return raw / (decimal)Math.Pow(10, decimals);
     }
 
     private static int GetInt(IReadOnlyList<LatestReadingSnapshot> list, string key)

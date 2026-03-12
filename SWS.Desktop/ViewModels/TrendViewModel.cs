@@ -83,6 +83,13 @@ public partial class TrendViewModel : ObservableObject, IDisposable
             LabelsPaint = new SolidColorPaint(SKColor.Parse("#A9B7CF")),
             SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3A55")),
         });
+
+        // LiveCharts needs at least one Y axis to render
+        YAxes.Add(new Axis
+        {
+            LabelsPaint = new SolidColorPaint(SKColor.Parse("#A9B7CF")),
+            SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3A55")),
+        });
     }
 
     // ── Load available points ─────────────────────────────────────────────
@@ -151,13 +158,14 @@ public partial class TrendViewModel : ObservableObject, IDisposable
         UpdateStatus();
     }
 
+    private bool _suppressAxisEvents = false;
+
     private void OnSeriesAxisIndexChanged(SelectedSeriesVm series)
     {
-        // Reassign the chart series to the new axis
+        if (_suppressAxisEvents) return;
         var chartSeries = Series.FirstOrDefault(s => s.Name == series.SeriesName);
         if (chartSeries is LineSeries<DateTimePoint> ls)
             ls.ScalesYAt = series.AxisIndex;
-
         RebuildAxes();
     }
 
@@ -166,14 +174,22 @@ public partial class TrendViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task RefreshAsync()
     {
-        if (SelectedSeries.Count == 0)
-        {
-            Status = "No series selected.";
-            return;
-        }
+        if (SelectedSeries.Count == 0) { Status = "No series selected."; return; }
 
         IsLoading = true;
         Series.Clear();
+        YAxes.Clear();
+
+        _suppressAxisEvents = true;
+        // Rebuild axes from current SelectedSeries before loading data
+        foreach (var s in SelectedSeries)
+        {
+            int idx = GetOrCreateAxis(s.Unit, SelectedSeries.IndexOf(s));
+            // Update the series' axis index to match rebuilt axes
+            if (s.AxisIndex != idx)
+                s.AxisIndex = idx; // suppress event side-effect — see note below
+        }
+        _suppressAxisEvents = false;
 
         try
         {
@@ -182,10 +198,7 @@ public partial class TrendViewModel : ObservableObject, IDisposable
             await Task.WhenAll(tasks);
             UpdateStatus();
         }
-        finally
-        {
-            IsLoading = false;
-        }
+        finally { IsLoading = false; }
     }
 
     private async Task LoadSeriesDataAsync(SelectedSeriesVm seriesVm,

@@ -10,7 +10,7 @@
         <Setter Property="Foreground" Value="{DynamicResource App.TextBrush}"/>
     </Style>
 
-    <!-- A nice “section title” look (opt-in: Style="{StaticResource SectionTitleText}") -->
+    <!-- A nice “section title” look (opt-in: Style="{DynamicResource SectionTitleText}") -->
     <Style x:Key="SectionTitleText" TargetType="{x:Type TextBlock}">
         <Setter Property="Foreground" Value="{DynamicResource App.TextBrush}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
@@ -79,7 +79,7 @@
     </Style>
 
     <!-- Nav buttons (top bar) - cleaner + more “app like” -->
-    <!-- Use this on your top bar buttons: Style="{StaticResource NavButtonStyle}" -->
+    <!-- Use this on your top bar buttons: Style="{DynamicResource NavButtonStyle}" -->
     <Style x:Key="NavButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
@@ -169,7 +169,7 @@
     </Style>
 
     <!-- Small “chip” buttons (Dashboard Refresh / Auto look like chips) -->
-    <!-- Use: Style="{StaticResource ChipButtonStyle}" -->
+    <!-- Use: Style="{DynamicResource ChipButtonStyle}" -->
     <Style x:Key="ChipButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Padding" Value="10,4"/>
         <Setter Property="FontSize" Value="12"/>
@@ -437,7 +437,7 @@
         <Setter Property="HeadersVisibility" Value="Column"/>
         <Setter Property="RowHeaderWidth" Value="0"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
-        
+
     </Style>
 
     <Style TargetType="{x:Type DataGridColumnHeader}">
@@ -464,6 +464,72 @@
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{DynamicResource App.PrimaryBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource App.PrimaryTextBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- DatePicker shell -->
+    <Style TargetType="DatePicker">
+        <Setter Property="Background" Value="{DynamicResource App.SurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource App.TextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource App.BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+
+    <Style TargetType="DatePickerTextBox">
+        <Setter Property="Background" Value="{DynamicResource App.SurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource App.TextBrush}"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource App.TextBrush}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource App.InputBackgroundBrush}"/>
+    </Style>
+
+    <!-- Calendar popup container -->
+    <Style TargetType="Calendar">
+        <Setter Property="Background" Value="{DynamicResource App.SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource App.BorderBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource App.TextBrush}"/>
+    </Style>
+
+    <Style TargetType="CalendarItem">
+        <Setter Property="Background" Value="{DynamicResource App.SurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource App.BorderBrush}"/>
+    </Style>
+
+    <!-- Individual day buttons -->
+    <Style TargetType="CalendarDayButton">
+        <Setter Property="Foreground" Value="{DynamicResource App.TextBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource App.PrimaryHoverBrush}"/>
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{DynamicResource App.InputBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="#FFFFFF"/>
+            </Trigger>
+            <Trigger Property="IsInactive" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource App.MutedTextBrush}"/>
+            </Trigger>
+            <Trigger Property="IsToday" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource App.InputBackgroundBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Month/year navigation buttons -->
+    <Style TargetType="CalendarButton">
+        <Setter Property="Foreground" Value="{DynamicResource App.TextBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource App.PrimaryHoverBrush}"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter Property="Background" Value="{DynamicResource App.InputBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="#FFFFFF"/>
             </Trigger>
         </Style.Triggers>
     </Style>

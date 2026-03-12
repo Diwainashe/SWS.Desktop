@@ -12,6 +12,8 @@ using SWS.Desktop.ViewModels;
 using SWS.Desktop.Views;
 using SWS.Modbus;
 using System.Windows;
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
 
 namespace SWS.Desktop;
 
@@ -22,6 +24,9 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // ADD THIS — required for LiveCharts WPF to initialise its render pipeline
+        LiveCharts.Configure(config => config.AddDarkTheme());
 
         if (!TryEnsureDatabaseReady(out var errorMessage))
         {

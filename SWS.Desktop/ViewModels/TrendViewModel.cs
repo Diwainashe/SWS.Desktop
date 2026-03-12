@@ -7,6 +7,8 @@ using LiveChartsCore.SkiaSharpView.Painting;
 using SkiaSharp;
 using SWS.Desktop.Services;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows.Data;
 
 namespace SWS.Desktop.ViewModels;
 
@@ -31,6 +33,7 @@ public partial class TrendViewModel : ObservableObject, IDisposable
 
     // ── Point picker ──────────────────────────────────────────────────────
     public ObservableCollection<TrendablePointVm> AvailablePoints { get; } = new();
+    public ICollectionView AvailablePointsView { get; }
     public ObservableCollection<SelectedSeriesVm> SelectedSeries { get; } = new();
 
     // ── Chart — array properties so PropertyChanged triggers LiveCharts redraw ──
@@ -59,6 +62,12 @@ public partial class TrendViewModel : ObservableObject, IDisposable
     public TrendViewModel(TrendDataService trendData)
     {
         _trendData = trendData;
+
+        // Wire up grouped view for the point picker
+        var cvs = new CollectionViewSource { Source = AvailablePoints };
+        cvs.GroupDescriptions.Add(new PropertyGroupDescription(nameof(TrendablePointVm.DeviceName)));
+        AvailablePointsView = cvs.View;
+
         InitChart();
         _ = LoadAvailablePointsAsync();
     }
@@ -67,21 +76,31 @@ public partial class TrendViewModel : ObservableObject, IDisposable
 
     private void InitChart()
     {
-        XAxes = new[]
-        {
-            new DateTimeAxis(TimeSpan.FromMinutes(1), d => d.ToString("HH:mm"))
-            {
-                Name = "Time",
-                NamePaint = new SolidColorPaint(SKColor.Parse("#A9B7CF")),
-                LabelsPaint = new SolidColorPaint(SKColor.Parse("#A9B7CF")),
-                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3A55")),
-            }
-        };
-
+        XAxes = BuildXAxis(TimeSpan.FromHours(1));
         YAxes = new[]
         {
             new Axis
             {
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#A9B7CF")),
+                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3A55")),
+            }
+        };
+    }
+
+    private static Axis[] BuildXAxis(TimeSpan span)
+    {
+        var tickUnit = span.TotalHours <= 1 ? TimeSpan.FromMinutes(5)
+                     : span.TotalHours <= 8 ? TimeSpan.FromMinutes(30)
+                     : span.TotalHours <= 24 ? TimeSpan.FromHours(2)
+                     : TimeSpan.FromHours(12);
+
+        return new[]
+        {
+            new DateTimeAxis(tickUnit, d =>
+                span.TotalHours <= 24 ? d.ToString("HH:mm") : d.ToString("dd/MM HH:mm"))
+            {
+                Name = "Time",
+                NamePaint = new SolidColorPaint(SKColor.Parse("#A9B7CF")),
                 LabelsPaint = new SolidColorPaint(SKColor.Parse("#A9B7CF")),
                 SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3A55")),
             }
@@ -149,7 +168,8 @@ public partial class TrendViewModel : ObservableObject, IDisposable
         {
             var (from, to) = GetTimeWindow();
 
-            // Build axes first (sequential, safe)
+            // Build axes based on the actual time window
+            var newXAxes = BuildXAxis(to - from);
             var newYAxes = BuildYAxes();
 
             // Load each series sequentially to avoid List concurrency corruption
@@ -160,10 +180,14 @@ public partial class TrendViewModel : ObservableObject, IDisposable
                 if (line != null) newSeries.Add(line);
             }
 
-            // Single assignment per property — fires PropertyChanged → LiveCharts redraws
-            YAxes = newYAxes;
-            Series = newSeries.ToArray();
-            // debugging
+            // Force onto UI thread — LiveCharts must receive property changes on the dispatcher
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                XAxes = newXAxes;
+                YAxes = newYAxes;
+                Series = newSeries.ToArray();
+            });
+
             System.Diagnostics.Debug.WriteLine($"[Trend] Series count: {Series.Length}");
             System.Diagnostics.Debug.WriteLine($"[Trend] YAxes count: {YAxes.Length}");
             foreach (var s in Series)
@@ -183,7 +207,6 @@ public partial class TrendViewModel : ObservableObject, IDisposable
 
     private Axis[] BuildYAxes()
     {
-        // One axis per unique unit, alternating left/right
         var axes = new List<Axis>();
         var unitsSeen = new List<string>();
 
@@ -192,7 +215,8 @@ public partial class TrendViewModel : ObservableObject, IDisposable
             if (!unitsSeen.Contains(s.Unit))
             {
                 unitsSeen.Add(s.Unit);
-                var color = Palette[unitsSeen.Count - 1 % Palette.Length];
+                // Bug fix: parentheses around (unitsSeen.Count - 1) before % operator
+                var color = Palette[(unitsSeen.Count - 1) % Palette.Length];
                 axes.Add(new Axis
                 {
                     Name = s.Unit,
@@ -206,7 +230,6 @@ public partial class TrendViewModel : ObservableObject, IDisposable
             }
         }
 
-        // Always have at least one axis
         if (axes.Count == 0)
         {
             axes.Add(new Axis
@@ -229,21 +252,20 @@ public partial class TrendViewModel : ObservableObject, IDisposable
 
             var points = data
                 .Select(d => new DateTimePoint(d.Timestamp, (double)d.Value))
-                .ToArray();
+                .ToList();
 
-            // Find the axis index for this series' unit
             int axisIndex = 0;
             for (int i = 0; i < yAxes.Length; i++)
             {
                 if (yAxes[i].Name == seriesVm.Unit) { axisIndex = i; break; }
             }
 
-            seriesVm.PointCount = points.Length;
+            seriesVm.PointCount = points.Count;
 
             return new LineSeries<DateTimePoint>
             {
                 Name = seriesVm.SeriesName,
-                Values = points,
+                Values = new ObservableCollection<DateTimePoint>(points),
                 ScalesYAt = axisIndex,
                 Stroke = new SolidColorPaint(seriesVm.Color) { StrokeThickness = 1.5f },
                 Fill = new SolidColorPaint(seriesVm.Color.WithAlpha(20)),

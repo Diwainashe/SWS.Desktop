@@ -36,8 +36,9 @@
                 </StackPanel>
             </Border>
 
-            <!-- Available points list -->
+            <!-- Available points list — bound to the grouped CollectionView -->
             <ListBox x:Name="PointPickerList" Grid.Row="1"
+                     ItemsSource="{Binding AvailablePointsView}"
                      Background="Transparent"
                      BorderThickness="0"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -274,10 +275,10 @@
 
                 <!-- Chart -->
                 <lvc:CartesianChart
+                    x:Name="MainChart"
                     Series="{Binding Series}"
                     XAxes="{Binding XAxes}"
                     YAxes="{Binding YAxes}"
-                    LegendPosition="Right"
                     Background="Transparent"
                     MinHeight="100"
                     MinWidth="100"

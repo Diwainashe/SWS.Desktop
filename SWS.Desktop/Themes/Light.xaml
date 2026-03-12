@@ -54,4 +54,6 @@
     <SolidColorBrush x:Key="App.LogoFrameBrush" Color="#EEF3FB"/>
     <SolidColorBrush x:Key="App.LogoFrameBorderBrush" Color="#D7E1F0"/>
 
+    <SolidColorBrush x:Key="App.CalendarBackgroundBrush" Color="#FFFFFF"/>
+
 </ResourceDictionary>

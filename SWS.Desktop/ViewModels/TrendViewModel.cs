@@ -10,17 +10,6 @@ using System.Collections.ObjectModel;
 
 namespace SWS.Desktop.ViewModels;
 
-/// <summary>
-/// Trending page VM.
-///
-/// Layout concept:
-///   Left panel  — point picker (all trendable points, grouped by device)
-///   Right panel — chart with multiple Y-axes + time-range + loading state
-///
-/// Multiple series can share one Y-axis (same unit / similar range),
-/// or each get their own axis (e.g. kg vs t/h vs boolean).
-/// The user controls axis assignment per selected series.
-/// </summary>
 public partial class TrendViewModel : ObservableObject, IDisposable
 {
     private readonly TrendDataService _trendData;
@@ -35,9 +24,6 @@ public partial class TrendViewModel : ObservableObject, IDisposable
     [ObservableProperty] private DateTime _customTo = DateTime.Now;
     [ObservableProperty] private bool _isCustomRange = false;
 
-    // ── Unit ────────────────────────────────────────────────────────
-    [ObservableProperty] private string _unit = string.Empty;
-
     public TimeRangeOption[] RangeOptions { get; } = Enum.GetValues<TimeRangeOption>();
 
     partial void OnSelectedRangeChanged(TimeRangeOption value)
@@ -47,12 +33,17 @@ public partial class TrendViewModel : ObservableObject, IDisposable
     public ObservableCollection<TrendablePointVm> AvailablePoints { get; } = new();
     public ObservableCollection<SelectedSeriesVm> SelectedSeries { get; } = new();
 
-    // ── Chart ─────────────────────────────────────────────────────────────
-    public ObservableCollection<ISeries> Series { get; } = new();
-    public ObservableCollection<Axis> XAxes { get; } = new();
-    public ObservableCollection<Axis> YAxes { get; } = new();
+    // ── Chart — array properties so PropertyChanged triggers LiveCharts redraw ──
+    [ObservableProperty] private ISeries[] _series = Array.Empty<ISeries>();
+    [ObservableProperty] private Axis[] _xAxes = Array.Empty<Axis>();
+    [ObservableProperty] private Axis[] _yAxes = Array.Empty<Axis>();
 
-    // Colour palette — enough for 8 distinct series
+    public bool HasSeries => Series.Length > 0;
+
+    partial void OnSeriesChanged(ISeries[] value)
+        => OnPropertyChanged(nameof(HasSeries));
+
+    // Colour palette
     private static readonly SKColor[] Palette =
     {
         SKColor.Parse("#4E76FF"),
@@ -76,20 +67,25 @@ public partial class TrendViewModel : ObservableObject, IDisposable
 
     private void InitChart()
     {
-        XAxes.Add(new DateTimeAxis(TimeSpan.FromMinutes(1), d => d.ToString("HH:mm"))
+        XAxes = new[]
         {
-            Name = "Time",
-            NamePaint = new SolidColorPaint(SKColor.Parse("#A9B7CF")),
-            LabelsPaint = new SolidColorPaint(SKColor.Parse("#A9B7CF")),
-            SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3A55")),
-        });
+            new DateTimeAxis(TimeSpan.FromMinutes(1), d => d.ToString("HH:mm"))
+            {
+                Name = "Time",
+                NamePaint = new SolidColorPaint(SKColor.Parse("#A9B7CF")),
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#A9B7CF")),
+                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3A55")),
+            }
+        };
 
-        // LiveCharts needs at least one Y axis to render
-        YAxes.Add(new Axis
+        YAxes = new[]
         {
-            LabelsPaint = new SolidColorPaint(SKColor.Parse("#A9B7CF")),
-            SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3A55")),
-        });
+            new Axis
+            {
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#A9B7CF")),
+                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3A55")),
+            }
+        };
     }
 
     // ── Load available points ─────────────────────────────────────────────
@@ -106,7 +102,7 @@ public partial class TrendViewModel : ObservableObject, IDisposable
                 AvailablePoints.Add(new TrendablePointVm(p));
 
             Status = points.Count == 0
-                ? "No history data yet. Points must have LogToHistory enabled."
+                ? "No history data yet. Enable LogToHistory on points first."
                 : $"{points.Count} point{(points.Count != 1 ? "s" : "")} available.";
         }
         catch (Exception ex)
@@ -124,52 +120,22 @@ public partial class TrendViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void AddToChart(TrendablePointVm point)
     {
-        if (SelectedSeries.Any(s => s.PointConfigId == point.Dto.PointConfigId))
-            return; // already added
+        if (SelectedSeries.Any(s => s.PointConfigId == point.Dto.PointConfigId)) return;
+        if (SelectedSeries.Count >= Palette.Length) { Status = "Maximum 8 series."; return; }
 
-        if (SelectedSeries.Count >= Palette.Length)
-        {
-            Status = "Maximum 8 series on one chart.";
-            return;
-        }
-
-        // Determine a sensible default axis — reuse existing axis with same unit,
-        // or create a new one
-        int axisIndex = GetOrCreateAxis(point.Dto.Unit, SelectedSeries.Count);
-
-        var seriesVm = new SelectedSeriesVm(point.Dto, Palette[SelectedSeries.Count], axisIndex, YAxes.Count);
-        seriesVm.AxisIndexChanged += OnSeriesAxisIndexChanged;
+        var seriesVm = new SelectedSeriesVm(point.Dto, Palette[SelectedSeries.Count]);
         SelectedSeries.Add(seriesVm);
-
-        _ = LoadSeriesDataAsync(seriesVm);
+        Status = $"{SelectedSeries.Count} series selected — press Load.";
     }
 
     [RelayCommand]
     private void RemoveFromChart(SelectedSeriesVm series)
     {
-        series.AxisIndexChanged -= OnSeriesAxisIndexChanged;
         SelectedSeries.Remove(series);
-
-        // Remove the chart series
-        var chartSeries = Series.FirstOrDefault(s => s.Name == series.SeriesName);
-        if (chartSeries != null) Series.Remove(chartSeries);
-
-        RebuildAxes();
         UpdateStatus();
     }
 
-    private bool _suppressAxisEvents = false;
-
-    private void OnSeriesAxisIndexChanged(SelectedSeriesVm series)
-    {
-        if (_suppressAxisEvents) return;
-        var chartSeries = Series.FirstOrDefault(s => s.Name == series.SeriesName);
-        if (chartSeries is LineSeries<DateTimePoint> ls)
-            ls.ScalesYAt = series.AxisIndex;
-        RebuildAxes();
-    }
-
-    // ── Time range + refresh ──────────────────────────────────────────────
+    // ── Refresh ───────────────────────────────────────────────────────────
 
     [RelayCommand]
     private async Task RefreshAsync()
@@ -177,115 +143,127 @@ public partial class TrendViewModel : ObservableObject, IDisposable
         if (SelectedSeries.Count == 0) { Status = "No series selected."; return; }
 
         IsLoading = true;
-        Series.Clear();
-        YAxes.Clear();
-
-        _suppressAxisEvents = true;
-        // Rebuild axes from current SelectedSeries before loading data
-        foreach (var s in SelectedSeries)
-        {
-            int idx = GetOrCreateAxis(s.Unit, SelectedSeries.IndexOf(s));
-            // Update the series' axis index to match rebuilt axes
-            if (s.AxisIndex != idx)
-                s.AxisIndex = idx; // suppress event side-effect — see note below
-        }
-        _suppressAxisEvents = false;
+        Status = "Loading…";
 
         try
         {
             var (from, to) = GetTimeWindow();
-            var tasks = SelectedSeries.Select(s => LoadSeriesDataAsync(s, from, to));
-            await Task.WhenAll(tasks);
+
+            // Build axes first (sequential, safe)
+            var newYAxes = BuildYAxes();
+
+            // Load each series sequentially to avoid List concurrency corruption
+            var newSeries = new List<ISeries>();
+            foreach (var s in SelectedSeries)
+            {
+                var line = await LoadSeriesAsync(s, from, to, newYAxes);
+                if (line != null) newSeries.Add(line);
+            }
+
+            // Single assignment per property — fires PropertyChanged → LiveCharts redraws
+            YAxes = newYAxes;
+            Series = newSeries.ToArray();
+            // debugging
+            System.Diagnostics.Debug.WriteLine($"[Trend] Series count: {Series.Length}");
+            System.Diagnostics.Debug.WriteLine($"[Trend] YAxes count: {YAxes.Length}");
+            foreach (var s in Series)
+                System.Diagnostics.Debug.WriteLine($"[Trend] Series: {s.Name}, values: {(s.Values as System.Collections.ICollection)?.Count ?? -1}");
+
             UpdateStatus();
         }
-        finally { IsLoading = false; }
+        catch (Exception ex)
+        {
+            Status = $"Load failed: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
-    private async Task LoadSeriesDataAsync(SelectedSeriesVm seriesVm,
-        DateTime? from = null, DateTime? to = null)
+    private Axis[] BuildYAxes()
     {
-        var (f, t) = from.HasValue ? (from.Value, to!.Value) : GetTimeWindow();
+        // One axis per unique unit, alternating left/right
+        var axes = new List<Axis>();
+        var unitsSeen = new List<string>();
 
+        foreach (var s in SelectedSeries)
+        {
+            if (!unitsSeen.Contains(s.Unit))
+            {
+                unitsSeen.Add(s.Unit);
+                var color = Palette[unitsSeen.Count - 1 % Palette.Length];
+                axes.Add(new Axis
+                {
+                    Name = s.Unit,
+                    NamePaint = new SolidColorPaint(color),
+                    LabelsPaint = new SolidColorPaint(color),
+                    SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3A55")),
+                    Position = axes.Count % 2 == 0
+                        ? LiveChartsCore.Measure.AxisPosition.Start
+                        : LiveChartsCore.Measure.AxisPosition.End,
+                });
+            }
+        }
+
+        // Always have at least one axis
+        if (axes.Count == 0)
+        {
+            axes.Add(new Axis
+            {
+                LabelsPaint = new SolidColorPaint(SKColor.Parse("#A9B7CF")),
+                SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3A55")),
+            });
+        }
+
+        return axes.ToArray();
+    }
+
+    private async Task<ISeries?> LoadSeriesAsync(
+        SelectedSeriesVm seriesVm, DateTime from, DateTime to, Axis[] yAxes)
+    {
         try
         {
             var data = await _trendData.GetHistoryAsync(
-                seriesVm.PointConfigId, f, t, maxPoints: 2000, CancellationToken.None);
+                seriesVm.PointConfigId, from, to, maxPoints: 2000, CancellationToken.None);
 
             var points = data
                 .Select(d => new DateTimePoint(d.Timestamp, (double)d.Value))
-                .ToList();
+                .ToArray();
 
-            // Remove old series with same name, add fresh
-            var existing = Series.FirstOrDefault(s => s.Name == seriesVm.SeriesName);
-            if (existing != null) Series.Remove(existing);
+            // Find the axis index for this series' unit
+            int axisIndex = 0;
+            for (int i = 0; i < yAxes.Length; i++)
+            {
+                if (yAxes[i].Name == seriesVm.Unit) { axisIndex = i; break; }
+            }
 
-            var line = new LineSeries<DateTimePoint>
+            seriesVm.PointCount = points.Length;
+
+            return new LineSeries<DateTimePoint>
             {
                 Name = seriesVm.SeriesName,
-                Values = new ObservableCollection<DateTimePoint>(points),
-                ScalesYAt = seriesVm.AxisIndex,
+                Values = points,
+                ScalesYAt = axisIndex,
                 Stroke = new SolidColorPaint(seriesVm.Color) { StrokeThickness = 1.5f },
                 Fill = new SolidColorPaint(seriesVm.Color.WithAlpha(20)),
-                GeometrySize = 0,   // no dots — clean line
-                LineSmoothness = 0, // straight segments for process data
+                GeometrySize = 0,
+                LineSmoothness = 0,
             };
-
-            Series.Add(line);
-
-            seriesVm.PointCount = points.Count;
         }
         catch (Exception ex)
         {
             Status = $"Error loading {seriesVm.Label}: {ex.Message}";
+            return null;
         }
-    }
-
-    // ── Axis management ───────────────────────────────────────────────────
-
-    /// <summary>
-    /// Returns the index of an existing axis whose unit matches,
-    /// or creates a new axis and returns its index.
-    /// </summary>
-    private int GetOrCreateAxis(string unit, int seriesCount)
-    {
-        // Try to reuse an axis with the same unit label
-        for (int i = 0; i < YAxes.Count; i++)
-            if (YAxes[i].Name == unit) return i;
-
-        // Create new axis
-        var color = Palette[seriesCount % Palette.Length];
-        YAxes.Add(new Axis
-        {
-            Name = unit,
-            NamePaint = new SolidColorPaint(color),
-            LabelsPaint = new SolidColorPaint(color),
-            SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A3A55")),
-            Position = YAxes.Count % 2 == 0
-                ? LiveChartsCore.Measure.AxisPosition.Start
-                : LiveChartsCore.Measure.AxisPosition.End,
-        });
-
-        return YAxes.Count - 1;
-    }
-
-    private void RebuildAxes()
-    {
-        // Remove Y axes that have no series assigned
-        var usedIndices = SelectedSeries.Select(s => s.AxisIndex).ToHashSet();
-        var toRemove = YAxes
-            .Select((a, i) => (a, i))
-            .Where(x => !usedIndices.Contains(x.i))
-            .Select(x => x.a)
-            .ToList();
-
-        foreach (var a in toRemove)
-            YAxes.Remove(a);
     }
 
     // ── Time window ───────────────────────────────────────────────────────
 
     private (DateTime from, DateTime to) GetTimeWindow()
     {
+        if (IsCustomRange) return (CustomFrom, CustomTo);
+
         var to = DateTime.Now;
         var from = SelectedRange switch
         {
@@ -295,10 +273,9 @@ public partial class TrendViewModel : ObservableObject, IDisposable
             TimeRangeOption.Last8Hours => to.AddHours(-8),
             TimeRangeOption.Last24Hours => to.AddHours(-24),
             TimeRangeOption.Last7Days => to.AddDays(-7),
-            TimeRangeOption.Custom => CustomFrom,
             _ => to.AddHours(-1)
         };
-        return IsCustomRange ? (CustomFrom, CustomTo) : (from, to);
+        return (from, to);
     }
 
     private void UpdateStatus()
@@ -308,7 +285,7 @@ public partial class TrendViewModel : ObservableObject, IDisposable
         Status = $"{SelectedSeries.Count} series · {total:N0} points";
     }
 
-    public void Dispose() { /* nothing to unsubscribe */ }
+    public void Dispose() { }
 }
 
 // ── Supporting VMs ────────────────────────────────────────────────────────
@@ -330,39 +307,23 @@ public partial class SelectedSeriesVm : ObservableObject
     public string Unit { get; }
     public string SeriesName { get; }
     public SKColor Color { get; }
-    public int TotalAxes { get; }
-
-    private int _axisIndex;
-    public int AxisIndex
-    {
-        get => _axisIndex;
-        set
-        {
-            if (SetProperty(ref _axisIndex, value))
-                AxisIndexChanged?.Invoke(this);
-        }
-    }
 
     private int _pointCount;
-    public int PointCount { get => _pointCount; set => SetProperty(ref _pointCount, value); }
+    public int PointCount
+    {
+        get => _pointCount;
+        set => SetProperty(ref _pointCount, value);
+    }
 
     public string ColorHex => $"#{Color.Red:X2}{Color.Green:X2}{Color.Blue:X2}";
 
-    /// <summary>Axis options available for this series (0..YAxes.Count-1).</summary>
-    public int[] AxisOptions { get; }
-
-    public event Action<SelectedSeriesVm>? AxisIndexChanged;
-
-    public SelectedSeriesVm(TrendablePointDto dto, SKColor color, int axisIndex, int totalAxes)
+    public SelectedSeriesVm(TrendablePointDto dto, SKColor color)
     {
         PointConfigId = dto.PointConfigId;
         Label = dto.Label;
         Unit = dto.Unit;
         SeriesName = $"{dto.DeviceName} — {dto.Label}";
         Color = color;
-        _axisIndex = axisIndex;
-        TotalAxes = totalAxes;
-        AxisOptions = Enumerable.Range(0, Math.Max(totalAxes, 1)).ToArray();
     }
 }
 

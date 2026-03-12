@@ -11,8 +11,11 @@
                 <!-- Default theme (will be swapped by AppThemeService) -->
                 <ResourceDictionary Source="Themes/Dark.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+            <conv:HexToColorBrushConverter x:Key="HexToColorBrushConverter"/>
             <conv:PageKeyToBoolConverter x:Key="PageKeyToBoolConverter"/>
             <conv:TimeRangeConverter x:Key="TimeRangeConverter"/>
+            <conv:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <conv:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

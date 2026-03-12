@@ -7,41 +7,30 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="280" MinWidth="220"/>
-            <!-- left: point picker -->
             <ColumnDefinition Width="4"/>
-            <!-- splitter -->
             <ColumnDefinition Width="*"/>
-            <!-- right: chart -->
         </Grid.ColumnDefinitions>
 
-        <!-- ══════════════════════════════════════════════
-             LEFT PANEL — Point Picker
-             ══════════════════════════════════════════════ -->
-        <Grid Grid.Column="0"
-              Background="{StaticResource App.SurfaceBrush}">
+        <!-- LEFT PANEL -->
+        <Grid Grid.Column="0" Background="{DynamicResource App.SurfaceBrush}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
-                <!-- header -->
                 <RowDefinition Height="*"/>
-                <!-- available points -->
                 <RowDefinition Height="Auto"/>
-                <!-- divider label -->
                 <RowDefinition Height="180"/>
-                <!-- selected series -->
             </Grid.RowDefinitions>
 
             <!-- Header -->
-            <Border Grid.Row="0"
-                    Padding="14,12"
+            <Border Grid.Row="0" Padding="14,12"
                     BorderThickness="0,0,0,1"
-                    BorderBrush="{StaticResource App.BorderBrush}">
+                    BorderBrush="{DynamicResource App.BorderBrush}">
                 <StackPanel>
                     <TextBlock Text="POINTS"
                                FontSize="10" FontWeight="Bold"
-                               Foreground="{StaticResource App.MutedTextBrush}"/>
+                               Foreground="{DynamicResource App.MutedTextBrush}"/>
                     <TextBlock Text="{Binding Status}"
                                FontSize="11"
-                               Foreground="{StaticResource App.MutedTextBrush}"
+                               Foreground="{DynamicResource App.MutedTextBrush}"
                                TextWrapping="Wrap"
                                Margin="0,4,0,0"/>
                 </StackPanel>
@@ -49,7 +38,6 @@
 
             <!-- Available points list -->
             <ListBox x:Name="PointPickerList" Grid.Row="1"
-                     ItemsSource="{Binding}"
                      Background="Transparent"
                      BorderThickness="0"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -60,22 +48,22 @@
                                 <TextBlock Text="{Binding Name}"
                                            Padding="14,8,0,4"
                                            FontSize="10" FontWeight="Bold"
-                                           Foreground="{StaticResource App.MutedTextBrush}"
-                                           Background="{StaticResource App.Surface2Brush}"/>
+                                           Foreground="{DynamicResource App.MutedTextBrush}"
+                                           Background="{DynamicResource App.Surface2Brush}"/>
                             </DataTemplate>
                         </GroupStyle.HeaderTemplate>
                     </GroupStyle>
                 </ListBox.GroupStyle>
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">
-                        <Setter Property="Padding"          Value="14,7"/>
-                        <Setter Property="Background"       Value="Transparent"/>
-                        <Setter Property="BorderThickness"  Value="0"/>
+                        <Setter Property="Padding" Value="14,7"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0"/>
                         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                        <Setter Property="Cursor"           Value="Hand"/>
+                        <Setter Property="Cursor" Value="Hand"/>
                         <Style.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{StaticResource App.Surface2Brush}"/>
+                                <Setter Property="Background" Value="{DynamicResource App.Surface2Brush}"/>
                             </Trigger>
                         </Style.Triggers>
                     </Style>
@@ -90,18 +78,17 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="{Binding Dto.Label}"
                                            FontSize="12"
-                                           Foreground="{StaticResource App.TextBrush}"
+                                           Foreground="{DynamicResource App.TextBrush}"
                                            TextTrimming="CharacterEllipsis"/>
                                 <TextBlock Text="{Binding Dto.Unit}"
                                            FontSize="10"
-                                           Foreground="{StaticResource App.MutedTextBrush}"
+                                           Foreground="{DynamicResource App.MutedTextBrush}"
                                            Margin="0,1,0,0"/>
                             </StackPanel>
                             <Button Grid.Column="1"
                                     Content="+"
                                     Width="24" Height="24"
-                                    FontSize="14"
-                                    Padding="0"
+                                    FontSize="14" Padding="0"
                                     Margin="8,0,0,0"
                                     VerticalAlignment="Center"
                                     Command="{Binding DataContext.AddToChartCommand,
@@ -112,18 +99,17 @@
                 </ListBox.ItemTemplate>
             </ListBox>
 
-            <!-- Section label -->
-            <Border Grid.Row="2"
-                    Padding="14,6"
+            <!-- ON CHART label -->
+            <Border Grid.Row="2" Padding="14,6"
                     BorderThickness="0,1,0,0"
-                    BorderBrush="{StaticResource App.BorderBrush}"
-                    Background="{StaticResource App.Surface2Brush}">
+                    BorderBrush="{DynamicResource App.BorderBrush}"
+                    Background="{DynamicResource App.Surface2Brush}">
                 <TextBlock Text="ON CHART"
                            FontSize="10" FontWeight="Bold"
-                           Foreground="{StaticResource App.MutedTextBrush}"/>
+                           Foreground="{DynamicResource App.MutedTextBrush}"/>
             </Border>
 
-            <!-- Selected series -->
+            <!-- Selected series list -->
             <ScrollViewer Grid.Row="3"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
@@ -132,12 +118,8 @@
                         <DataTemplate DataType="{x:Type vm:SelectedSeriesVm}">
                             <Border Padding="10,8"
                                     BorderThickness="0,0,0,1"
-                                    BorderBrush="{StaticResource App.BorderBrush}">
+                                    BorderBrush="{DynamicResource App.BorderBrush}">
                                 <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
@@ -145,58 +127,38 @@
                                     </Grid.ColumnDefinitions>
 
                                     <!-- Colour swatch -->
-                                    <Border Grid.Row="0" Grid.Column="0"
+                                    <Border Grid.Column="0"
                                             Width="10" Height="10"
                                             CornerRadius="2"
                                             Margin="0,0,8,0"
-                                            VerticalAlignment="Center">
-                                        <Border.Background>
-                                            <SolidColorBrush Color="{Binding ColorHex}"/>
-                                        </Border.Background>
-                                    </Border>
+                                            VerticalAlignment="Center"
+                                            Background="{Binding ColorHex,
+                                                Converter={StaticResource HexToColorBrushConverter}}"/>
 
                                     <!-- Label + point count -->
-                                    <StackPanel Grid.Row="0" Grid.Column="1">
+                                    <StackPanel Grid.Column="1">
                                         <TextBlock Text="{Binding Label}"
                                                    FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource App.TextBrush}"
+                                                   Foreground="{DynamicResource App.TextBrush}"
                                                    TextTrimming="CharacterEllipsis"/>
                                         <TextBlock FontSize="10"
-                                                   Foreground="{StaticResource App.MutedTextBrush}">
-                                            <Run Text="{Binding PointCount, Mode=OneWay, StringFormat='{}{0:N0} pts'}"/>
+                                                   Foreground="{DynamicResource App.MutedTextBrush}">
+                                            <Run Text="{Binding PointCount, Mode=OneWay,
+                                                        StringFormat='{}{0:N0} pts'}"/>
                                             <Run Text=" · "/>
                                             <Run Text="{Binding Unit, Mode=OneWay}"/>
                                         </TextBlock>
                                     </StackPanel>
 
                                     <!-- Remove button -->
-                                    <Button Grid.Row="0" Grid.Column="2"
-                                            Content="×"
+                                    <Button Grid.Column="2"
+                                            Content="x"
                                             Width="20" Height="20"
-                                            FontSize="12"
-                                            Padding="0"
+                                            FontSize="12" Padding="0"
                                             VerticalAlignment="Top"
                                             Command="{Binding DataContext.RemoveFromChartCommand,
                                                       RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}"/>
-
-                                    <!-- Axis selector -->
-                                    <StackPanel Grid.Row="1" Grid.Column="0"
-                                                Grid.ColumnSpan="3"
-                                                Orientation="Horizontal"
-                                                Margin="0,6,0,0">
-                                        <TextBlock Text="Y-Axis:"
-                                                   FontSize="10"
-                                                   Foreground="{StaticResource App.MutedTextBrush}"
-                                                   VerticalAlignment="Center"
-                                                   Margin="18,0,6,0"/>
-                                        <ComboBox ItemsSource="{Binding AxisOptions}"
-                                                  SelectedItem="{Binding AxisIndex, Mode=TwoWay}"
-                                                  Height="22"
-                                                  FontSize="11"
-                                                  Padding="6,2"
-                                                  MinWidth="60"/>
-                                    </StackPanel>
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -209,48 +171,32 @@
         <GridSplitter Grid.Column="1"
                       Width="4"
                       HorizontalAlignment="Stretch"
-                      Background="{StaticResource App.BorderBrush}"
+                      Background="{DynamicResource App.BorderBrush}"
                       Cursor="SizeWE"/>
 
-        <!-- ══════════════════════════════════════════════
-             RIGHT PANEL — Chart + Controls
-             ══════════════════════════════════════════════ -->
+        <!-- RIGHT PANEL -->
         <Grid Grid.Column="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
-                <!-- toolbar -->
                 <RowDefinition Height="*"/>
-                <!-- chart -->
             </Grid.RowDefinitions>
 
             <!-- Toolbar -->
-            <Border Grid.Row="0"
-                    Padding="14,10"
+            <Border Grid.Row="0" Padding="14,10"
                     BorderThickness="0,0,0,1"
-                    BorderBrush="{StaticResource App.BorderBrush}"
-                    Background="{StaticResource App.SurfaceBrush}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+                    BorderBrush="{DynamicResource App.BorderBrush}"
+                    Background="{DynamicResource App.SurfaceBrush}">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
 
-                    <TextBlock Grid.Column="0"
-                               Text="Range:"
+                    <TextBlock Text="Range:"
                                VerticalAlignment="Center"
                                FontSize="12"
-                               Foreground="{StaticResource App.MutedTextBrush}"
+                               Foreground="{DynamicResource App.MutedTextBrush}"
                                Margin="0,0,8,0"/>
 
-                    <ComboBox Grid.Column="1"
-                              ItemsSource="{Binding RangeOptions}"
+                    <ComboBox ItemsSource="{Binding RangeOptions}"
                               SelectedItem="{Binding SelectedRange, Mode=TwoWay}"
-                              Height="28" Padding="8,3"
-                              MinWidth="120">
+                              Height="28" Padding="8,3" MinWidth="120">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding Converter={StaticResource TimeRangeConverter}}"/>
@@ -258,9 +204,8 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
 
-                    <!-- Custom range pickers (visible only when Custom selected) -->
-                    <StackPanel Grid.Column="2"
-                                Orientation="Horizontal"
+                    <!-- Custom date pickers -->
+                    <StackPanel Orientation="Horizontal"
                                 Margin="12,0,0,0"
                                 VerticalAlignment="Center">
                         <StackPanel.Style>
@@ -274,29 +219,27 @@
                             </Style>
                         </StackPanel.Style>
                         <TextBlock Text="From:" VerticalAlignment="Center"
-                                   Foreground="{StaticResource App.MutedTextBrush}"
+                                   Foreground="{DynamicResource App.MutedTextBrush}"
                                    FontSize="12" Margin="0,0,6,0"/>
                         <DatePicker SelectedDate="{Binding CustomFrom, Mode=TwoWay}"
                                     Height="28" FontSize="12" Margin="0,0,12,0"/>
                         <TextBlock Text="To:" VerticalAlignment="Center"
-                                   Foreground="{StaticResource App.MutedTextBrush}"
+                                   Foreground="{DynamicResource App.MutedTextBrush}"
                                    FontSize="12" Margin="0,0,6,0"/>
                         <DatePicker SelectedDate="{Binding CustomTo, Mode=TwoWay}"
                                     Height="28" FontSize="12"/>
                     </StackPanel>
 
-                    <Button Grid.Column="3"
-                            Content="Load"
-                            Padding="14,5"
-                            Margin="12,0,0,0"
+                    <Button Content="Load"
+                            Padding="14,5" Margin="12,0,0,0"
                             Command="{Binding RefreshCommand}"/>
 
-                    <!-- Loading indicator -->
-                    <StackPanel Grid.Column="5"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center">
-                        <StackPanel.Style>
-                            <Style TargetType="StackPanel">
+                    <TextBlock Text="Loading..."
+                               FontSize="11" Margin="12,0,0,0"
+                               Foreground="{DynamicResource App.MutedTextBrush}"
+                               VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsLoading}" Value="True">
@@ -304,61 +247,43 @@
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
-                        </StackPanel.Style>
-                        <TextBlock Text="Loading…"
-                                   FontSize="11"
-                                   Foreground="{StaticResource App.MutedTextBrush}"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Grid>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                </StackPanel>
             </Border>
 
-            <!-- Chart or empty state -->
+            <!-- Chart area -->
             <Grid Grid.Row="1">
 
                 <!-- Empty state -->
                 <StackPanel VerticalAlignment="Center"
-                            HorizontalAlignment="Center">
-                    <StackPanel.Style>
-                        <Style TargetType="StackPanel">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding SelectedSeries.Count}" Value="0">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </StackPanel.Style>
+                            HorizontalAlignment="Center"
+                            Visibility="{Binding HasSeries,
+                                Converter={StaticResource InverseBoolToVisibility}}">
                     <TextBlock Text="No series selected"
                                FontSize="16"
-                               Foreground="{StaticResource App.MutedTextBrush}"
+                               Foreground="{DynamicResource App.MutedTextBrush}"
                                HorizontalAlignment="Center"/>
-                    <TextBlock Text="Click + next to a point on the left to add it to the chart."
+                    <TextBlock Text="Click + next to a point on the left, then press Load."
                                FontSize="12"
-                               Foreground="{StaticResource App.MutedTextBrush}"
+                               Foreground="{DynamicResource App.MutedTextBrush}"
                                HorizontalAlignment="Center"
                                Margin="0,6,0,0"/>
                 </StackPanel>
 
-                <!-- LiveCharts2 chart -->
+                <!-- Chart -->
                 <lvc:CartesianChart
                     Series="{Binding Series}"
                     XAxes="{Binding XAxes}"
                     YAxes="{Binding YAxes}"
                     LegendPosition="Right"
                     Background="Transparent"
-                    Margin="8">
-                    <lvc:CartesianChart.Style>
-                        <Style TargetType="lvc:CartesianChart">
-                            <Setter Property="Visibility" Value="Visible"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding SelectedSeries.Count}" Value="0">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </lvc:CartesianChart.Style>
-                </lvc:CartesianChart>
+                    MinHeight="100"
+                    MinWidth="100"
+                    Margin="8"
+                    Visibility="{Binding HasSeries,
+                        Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
             </Grid>
         </Grid>

@@ -93,6 +93,11 @@ public partial class App : Application
                 services.AddTransient<SettingsView>();
                 services.AddTransient<DeviceDetailView>();
 
+                // Trend page
+                services.AddTransient<TrendViewModel>();
+                services.AddTransient<TrendView>();
+                services.AddScoped<TrendDataService>();
+
                 // Add later when you create it:
                 // services.AddTransient<ConfigViewModel>();
                 // services.AddTransient<ConfigView>();

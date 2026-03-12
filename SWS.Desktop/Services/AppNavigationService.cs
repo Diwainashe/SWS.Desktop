@@ -30,6 +30,7 @@ public sealed partial class AppNavigationService : ObservableObject, INavigation
         { AppPageKey.Devices,      typeof(DevicesView) },
         { AppPageKey.Points,       typeof(PointsView) },
         { AppPageKey.Settings,     typeof(SettingsView) },
+        { AppPageKey.Trend,        typeof(TrendView) },
         { AppPageKey.DeviceDetail, typeof(DeviceDetailView) },
     };
 

@@ -12,6 +12,7 @@ public enum AppPageKey
     Dashboard,
     Devices,
     Points,
+    Trend,
     Settings,
     DeviceDetail
 }

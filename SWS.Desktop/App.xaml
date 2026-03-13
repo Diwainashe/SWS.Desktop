@@ -10,6 +10,7 @@
 
                 <!-- Default theme (will be swapped by AppThemeService) -->
                 <ResourceDictionary Source="Themes/Dark.xaml"/>
+                <ResourceDictionary Source="Themes/Controls.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <conv:HexToColorBrushConverter x:Key="HexToColorBrushConverter"/>
             <conv:PageKeyToBoolConverter x:Key="PageKeyToBoolConverter"/>

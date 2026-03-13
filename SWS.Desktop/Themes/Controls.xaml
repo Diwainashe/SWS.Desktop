@@ -468,7 +468,7 @@
         </Style.Triggers>
     </Style>
 
-   
+
 
     <!-- ========= DATE PICKER / CALENDAR ========= -->
 
@@ -478,6 +478,10 @@
         <Setter Property="BorderBrush" Value="{DynamicResource App.BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="FontSize" Value="12"/>
+        <!-- Critical: must be set explicitly. Without this, DatePicker template-binds
+             CalendarStyle=null, which resolves to an explicit null style on the internal
+             Calendar — bypassing implicit style lookup and falling back to the OS Aero theme. -->
+        <Setter Property="CalendarStyle" Value="{DynamicResource ThemedCalendarStyle}"/>
     </Style>
 
     <Style TargetType="DatePickerTextBox">
@@ -487,7 +491,7 @@
         <Setter Property="SelectionBrush" Value="{DynamicResource App.PrimaryBrush}"/>
     </Style>
 
-    <Style TargetType="Calendar">
+    <Style x:Key="ThemedCalendarStyle" TargetType="Calendar">
         <Setter Property="OverridesDefaultStyle" Value="True"/>
         <Setter Property="Background" Value="{DynamicResource App.SurfaceBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource App.BorderBrush}"/>
@@ -500,6 +504,7 @@
                         BorderThickness="1"
                         CornerRadius="4">
                         <CalendarItem x:Name="PART_CalendarItem"
+                                  Style="{DynamicResource ThemedCalendarItemStyle}"
                                   Background="{DynamicResource App.SurfaceBrush}"
                                   BorderBrush="{DynamicResource App.BorderBrush}"
                                   BorderThickness="0"/>
@@ -509,7 +514,7 @@
         </Setter>
     </Style>
 
-    <Style TargetType="CalendarItem">
+    <Style x:Key="ThemedCalendarItemStyle" TargetType="CalendarItem">
         <Setter Property="OverridesDefaultStyle" Value="True"/>
         <Setter Property="Background" Value="{DynamicResource App.SurfaceBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource App.BorderBrush}"/>
